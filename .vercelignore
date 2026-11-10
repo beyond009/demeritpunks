@@ -11,3 +11,4 @@ work/
 *.local
 **/__pycache__/
 **/*.pyc
+logo-motion-preview.html

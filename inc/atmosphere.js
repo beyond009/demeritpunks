@@ -1,5 +1,5 @@
 /* World-space procedural mist. Its density never uses beam angle or intensity.
-   Six depth samples integrate the fog; light only changes illumination. */
+   Desktop integrates six depths; compact devices use two soft samples. */
 (() => {
   const vertex = `
     attribute vec2 position;
@@ -28,9 +28,14 @@
                      mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
     }
     float density(vec3 p) {
-      float n = noise(p) * .57;
-      n += noise(p * 2.03 + vec3(13.4,7.1,3.6)) * .29;
-      n += noise(p * 4.11 + vec3(3.8,17.2,8.1)) * .14;
+      #ifdef COMPACT
+        float n = noise(p) * .68;
+        n += noise(p * 2.03 + vec3(13.4,7.1,3.6)) * .32;
+      #else
+        float n = noise(p) * .57;
+        n += noise(p * 2.03 + vec3(13.4,7.1,3.6)) * .29;
+        n += noise(p * 4.11 + vec3(3.8,17.2,8.1)) * .14;
+      #endif
       return smoothstep(.28, .72, n);
     }
     vec2 light(vec2 p, vec2 eye, float depth) {
@@ -52,24 +57,38 @@
       vec2 uv = gl_FragCoord.xy / resolution;
       vec2 p = vec2(uv.x, 1.0 - uv.y) * viewport;
       vec3 fog = vec3(0.0);
-      for (int i = 0; i < 6; i++) {
-        float z = float(i) / 5.0;
+      #ifdef COMPACT
+        vec3 air = vec3(p / vec2(200.0,155.0), .4) + vec3(-time*.040,time*.010,time*.022);
+        vec3 sharedCurrent = vec3(noise(air*.6+vec3(8.1,time*.018,3.2)),
+          noise(air*.6+vec3(2.6,9.4,time*.014)),0.0)-vec3(.5,.5,0.0);
+        vec2 sharedLight = light(p, eyes.xy, 0.0) + light(p, eyes.zw, 0.0);
+        const int DEPTHS = 2;
+      #else
+        const int DEPTHS = 6;
+      #endif
+      for (int i = 0; i < DEPTHS; i++) {
+        float z = float(i) / float(DEPTHS - 1);
         float depth = (z - .5) * 2.0;
         // The air moves slowly across the room, independent of the light heads.
         vec3 world = vec3(p / vec2(200.0, 155.0), z * .85);
         world += vec3(-time * .040, time * .010, time * .022);
         // Slow local currents bend the advected cloud instead of sliding a
         // single flat pattern. They keep moving when playback is paused.
-        vec3 current = vec3(
-          noise(world * .6 + vec3(8.1, time * .018, 3.2)),
-          noise(world * .6 + vec3(2.6, 9.4, time * .014)), 0.0) - vec3(.5,.5,0.0);
+        #ifdef COMPACT
+          vec3 current = sharedCurrent;
+          vec2 incoming = sharedLight;
+        #else
+          vec3 current = vec3(
+            noise(world * .6 + vec3(8.1, time * .018, 3.2)),
+            noise(world * .6 + vec3(2.6, 9.4, time * .014)), 0.0) - vec3(.5,.5,0.0);
+          vec2 incoming = light(p, eyes.xy, depth) + light(p, eyes.zw, depth);
+        #endif
         float d = density(world + current * .5);
-        vec2 incoming = light(p, eyes.xy, depth) + light(p, eyes.zw, depth);
         // Always-visible faint ambient haze preserves cloud identity in darkness.
         vec3 ambient = vec3(.060, .057, .050);
         vec3 scattered = vec3(1.0, .75, .45) * incoming.x * (.18 + intensity * .82) * .125;
         vec3 shaft = vec3(1.0, .81, .53) * incoming.y * intensity * .10;
-        fog += d * (ambient + scattered + shaft) / 6.0;
+        fog += d * (ambient + scattered + shaft) / float(DEPTHS);
       }
       // Thin fog, without opaque smoke puffs or a full-page colour wash.
       gl_FragColor = vec4(fog, 1.0);
@@ -92,25 +111,39 @@
       }
       return shader;
     }
-    let program;
-    try {
-      const vs = compile(gl.VERTEX_SHADER, vertex), fs = compile(gl.FRAGMENT_SHADER, fragment);
-      program = gl.createProgram();
-      gl.attachShader(program, vs); gl.attachShader(program, fs); gl.linkProgram(program);
-      gl.deleteShader(vs); gl.deleteShader(fs);
-      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
-    } catch (error) {
-      if (program) gl.deleteProgram(program);
-      return null;
+    const variants = new Map();
+    let selected = null;
+    function select(compact) {
+      const key = compact ? 'compact' : 'full';
+      if (selected?.key === key) return;
+      if (!variants.has(key)) {
+        let program;
+        try {
+          const vs = compile(gl.VERTEX_SHADER, vertex);
+          const fs = compile(gl.FRAGMENT_SHADER, (compact ? '#define COMPACT\n' : '') + fragment);
+          program = gl.createProgram();
+          gl.attachShader(program, vs); gl.attachShader(program, fs);
+          gl.bindAttribLocation(program, 0, 'position');
+          gl.linkProgram(program);
+          gl.deleteShader(vs); gl.deleteShader(fs);
+          if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+          const uniforms = Object.fromEntries(['resolution','viewport','eyes','direction','time','intensity']
+            .map(name => [name, gl.getUniformLocation(program, name)]));
+          variants.set(key, { key, program, uniforms });
+        } catch (error) {
+          if (program) gl.deleteProgram(program);
+          return false;
+        }
+      }
+      selected = variants.get(key);
+      gl.useProgram(selected.program);
+      canvas.dataset.quality = key;
+      return true;
     }
-    gl.useProgram(program);
     const buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
-    const attribute = gl.getAttribLocation(program, 'position');
-    gl.enableVertexAttribArray(attribute); gl.vertexAttribPointer(attribute, 2, gl.FLOAT, false, 0, 0);
-    const uniforms = Object.fromEntries(['resolution','viewport','eyes','direction','time','intensity']
-      .map(name => [name, gl.getUniformLocation(program, name)]));
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
     let width = 1, height = 1, origins = [0,0,0,0], lost = false;
     canvas.dataset.renderer = 'webgl-world-fog';
     canvas.addEventListener('webglcontextlost', event => { event.preventDefault(); lost = true; canvas.hidden = true; });
@@ -126,15 +159,17 @@
       width = w; height = h; origins = nextOrigins.flat();
       if (replacement) { replacement.resize(w, h, nextOrigins); return; }
       // The mist is deliberately soft: render fewer pixels and let CSS upscale.
-      const compact = w < 700;
-      const scale = Math.min(.65, (compact ? 420 : 620) / w, (compact ? 360 : 520) / h);
+      const compact = w < 700 || matchMedia('(pointer: coarse)').matches;
+      if (select(compact) === false) { canvas.hidden = true; return; }
+      const scale = Math.min(.65, (compact ? 280 : 620) / w, (compact ? 300 : 520) / h);
       canvas.width = Math.max(1, Math.round(w * scale));
       canvas.height = Math.max(1, Math.round(h * scale));
       gl.viewport(0, 0, canvas.width, canvas.height);
     }
     function render(seconds, degrees, level) {
       if (replacement) { replacement.render(seconds, degrees, level); return; }
-      if (lost) return;
+      if (lost || !selected) return;
+      const { uniforms } = selected;
       gl.uniform2f(uniforms.resolution, canvas.width, canvas.height);
       gl.uniform2f(uniforms.viewport, width, height);
       gl.uniform4f(uniforms.eyes, ...origins);

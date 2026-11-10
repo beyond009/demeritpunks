@@ -17,6 +17,11 @@
   let mistTime = 0;
   let mistLight = .6;
   let lastMistFrame = -Infinity;
+  let mistInterval = 40;
+  let lastBeamFrame = -Infinity;
+  let compact = false;
+  let drawnAngle = NaN;
+  let drawnLevel = NaN;
   let lastAudioTime = 0;
   let liveFlash = { time: -Infinity, cue: -Infinity, strength: 0 };
   let lastRefinement = -Infinity;
@@ -84,20 +89,28 @@
       // Crossfade over the phrase boundary instead of snapping between looks.
       brightness = quiet * (1 - percussionMix) + accent * percussionMix;
     }
-    beams.forEach(beam => {
-      beam.setAttribute('transform', `translate(${beam.dataset.x} ${beam.dataset.y}) rotate(${angle.toFixed(3)})`);
-    });
+    if (Math.abs(angle - drawnAngle) > .015 || !Number.isFinite(drawnAngle)) {
+      if (!compact || timestamp - lastBeamFrame >= 30) {
+        beams.forEach(beam => {
+          beam.setAttribute('transform', `translate(${beam.dataset.x} ${beam.dataset.y}) rotate(${angle.toFixed(3)})`);
+        });
+        drawnAngle = angle;
+        lastBeamFrame = timestamp;
+      }
+    }
     // Air density has its own clock. Playback, angle, beat and track changes
     // only affect illumination; a cloud never rotates with the light source.
     if (animate) mistTime += dt;
     mistLight += (brightness - mistLight) * (1 - Math.exp(-dt * (brightness > mistLight ? 10 : 4)));
-    if (atmosphere && (!animate || timestamp - lastMistFrame >= 40)) {
+    if (atmosphere && (!animate || timestamp - lastMistFrame >= mistInterval)) {
       atmosphere.render(mistTime, angle, mistLight);
       lastMistFrame = timestamp;
     }
-    stage.style.opacity = brightness.toFixed(3);
-    // Eye glow shares the same accent envelope and low base light.
-    glowLayer.style.opacity = brightness.toFixed(3);
+    if (Math.abs(brightness - drawnLevel) > .002 || !Number.isFinite(drawnLevel)) {
+      stage.style.opacity = brightness.toFixed(3);
+      glowLayer.style.opacity = brightness.toFixed(3);
+      drawnLevel = brightness;
+    }
     stage.dataset.mode = sound.playing ? 'music' : 'idle';
     stage.dataset.pattern = pattern;
     stage.dataset.analysis = live?.ready ? 'live-fft+hpss' : 'hpss-score';
@@ -110,6 +123,10 @@
   }
   function measure() {
     const bounds = logo.getBoundingClientRect();
+    compact = innerWidth < 700 || matchMedia('(pointer: coarse)').matches;
+    mistInterval = compact ? 55 : 40;
+    drawnAngle = NaN;
+    lastBeamFrame = -Infinity;
     const reach = Math.hypot(innerWidth, innerHeight) * 1.3;
     for (const layer of [stage, glowLayer]) layer.setAttribute('viewBox', `0 0 ${innerWidth} ${innerHeight}`);
     stage.querySelectorAll('linearGradient').forEach(gradient => gradient.setAttribute('x2', reach));
