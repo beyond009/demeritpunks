@@ -6,18 +6,102 @@ const score = require('../inc/light-score.js');
 const path = require('node:path');
 const slugs = ['walking-out-of-fog', 'barefaced-lies', 'childhood-nightmare', 'bye-bye-my-country'];
 
-for (const slug of slugs) test(`${slug}: valid percussion score and low base light between accents`, () => {
+const encode = values => Buffer.from(values).toString('base64');
+function makeV3() {
+  const count = 101;
+  return {
+    version: 3, duration: 2, fps: 50, encoding: 'u8-base64',
+    channels: {
+      left: encode(Array.from({ length: count }, (_, index) => 90 + index)),
+      right: encode(Array.from({ length: count }, (_, index) => 205 - index)),
+      haze: encode(Array(count).fill(166)),
+      angleLeft: encode(Array.from({ length: count }, (_, index) => 40 + index)),
+      angleRight: encode(Array.from({ length: count }, (_, index) => 200 - index)),
+    },
+    beats: [.5, 1, 1.5],
+    phrases: [{ start: 0, end: 1, kind: 'quiet' }, { start: 1, end: 2, kind: 'groove' }],
+    accents: [{ time: 1, type: 'kick', strength: .9, side: 0 }],
+    analysis: { separator: 'htdemucs' },
+  };
+}
+function makeV2() {
+  return { version: 2, duration: 45, fps: 50, energy: Array(2251).fill(100),
+    sections: [{ start: 30.2, end: 45, mode: 'drums' }],
+    accents: Array.from({ length: 29 }, (_, index) => ({ time: 30.4 + index * .5, strength: .8 })),
+  };
+}
+
+for (const slug of slugs) test(`${slug}: valid playable score`, () => {
   const cues = JSON.parse(fs.readFileSync(path.join(__dirname, '../audio', `${slug}.json`)));
-  assert.equal(cues.version, 2);
-  assert.ok(cues.accents.length > 100);
-  for (let i = 0; i < cues.accents.length; i++) {
-    const accent = cues.accents[i];
-    assert.equal(score.read(cues, accent.time).mode, 'drums');
-    assert.ok(score.pulse(.05, accent.strength) >= .8);
-    assert.equal(score.pulse(.21, accent.strength), .34);
-    assert.ok(score.pulse(.12, accent.strength) > .34);
-    if (i) assert.ok(accent.time - cues.accents[i - 1].time >= .419);
+  assert.ok([2, 3].includes(cues.version));
+  assert.ok(cues.accents.length > 50);
+  let previous = -Infinity;
+  for (const accent of cues.accents) {
+    assert.ok(accent.time >= 0 && accent.time <= cues.duration);
+    assert.ok(accent.time > previous);
+    assert.ok(accent.strength >= 0 && accent.strength <= 1);
+    if (cues.version === 2) {
+      assert.equal(score.read(cues, accent.time).mode, 'drums');
+      assert.ok(accent.time - previous >= .419);
+    } else {
+      assert.ok(['kick', 'snare', 'fill', 'impact'].includes(accent.type));
+      assert.ok([-1, 0, 1].includes(accent.side));
+    }
+    previous = accent.time;
   }
+  if (cues.version === 3) {
+    assert.equal(cues.encoding, 'u8-base64');
+    assert.equal(cues.fps, 50);
+    assert.equal(cues.analysis.separator, 'htdemucs');
+    const count = Math.ceil(cues.duration * cues.fps) + 1;
+    for (const channel of ['left', 'right', 'haze', 'angleLeft', 'angleRight']) {
+      assert.equal(Buffer.from(cues.channels[channel], 'base64').length, count);
+    }
+    for (let time = 0; time < cues.duration; time += .137) {
+      const value = score.read(cues, time);
+      assert.equal(value.version, 3);
+      for (const level of [...value.levels, value.haze]) assert.ok(level >= 0 && level <= 1);
+      for (const angle of value.angles) assert.ok(angle >= 115 && angle <= 150);
+    }
+  }
+});
+
+test('v3: independent baked channels interpolate, clamp and seek without event state', () => {
+  const cues = makeV3();
+  const at = score.read(cues, .37);
+  assert.equal(at.scene, 'quiet');
+  assert.ok(Math.abs(at.levels[0] - 108.5 / 255) < 1e-10);
+  assert.ok(Math.abs(at.levels[1] - 186.5 / 255) < 1e-10);
+  assert.ok(Math.abs(at.angles[0] - (115 + 35 * 58.5 / 255)) < 1e-10);
+  assert.notEqual(at.angles[0], at.angles[1]);
+  assert.equal(score.read(cues, 1).scene, 'groove');
+  score.read(cues, 1.9); score.read(cues, 0); score.read(cues, 1.2);
+  assert.deepEqual(score.read(cues, .37), at);
+  assert.deepEqual(score.read(cues, -5), score.read(cues, 0));
+  assert.deepEqual(score.read(cues, 20), score.read(cues, 2));
+  assert.ok(Math.abs(at.haze - 166 / 255) < 1e-10);
+});
+
+test('v3: channels decode once, and malformed score gracefully falls back', () => {
+  let decodes = 0;
+  const context = { window: {}, Uint8Array, WeakMap,
+    atob: value => { decodes++; return Buffer.from(value, 'base64').toString('binary'); },
+  };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../inc/light-score.js'), 'utf8'), context);
+  const cues = makeV3();
+  for (let index = 0; index < 100; index++) context.window.DemeritScore.read(cues, index / 50);
+  assert.equal(decodes, 5);
+  const broken = makeV3(); broken.channels.haze = encode([1, 2]);
+  assert.equal(context.window.DemeritScore.read(broken, 1).version, 0);
+  const attempts = decodes;
+  context.window.DemeritScore.read(broken, .5);
+  assert.equal(decodes, attempts);
+});
+
+test('legacy accent keeps base light and a short release', () => {
+  assert.ok(score.pulse(.05, .8) >= .8);
+  assert.equal(score.pulse(.21, .8), .34);
+  assert.ok(score.pulse(.12, .8) > .34);
 });
 
 test('Childhood Nightmare: guitar intro sweeps, drum entrance flashes, seeking back restores sweep', () => {
@@ -75,7 +159,7 @@ test('Web Audio: one audible route across tracks; real transients; reset and fal
 });
 
 test('render loop: actual track changes from continuous narrow sweep, percussion crossfade and base light; pause/seek/reduced motion', () => {
-  const cues = JSON.parse(fs.readFileSync(path.join(__dirname, '../audio/childhood-nightmare.json')));
+  const cues = makeV2();
   const makeNode = () => ({ dataset: {}, style: {}, classList: { add() {} },
     attributes: {}, setAttribute(key, value) { this.attributes[key] = value; } });
   const beams = [makeNode(), makeNode()];
@@ -147,4 +231,129 @@ test('render loop: actual track changes from continuous narrow sweep, percussion
   audio.currentTime = 40; callback(52000);
   assert.equal(stage.dataset.pattern, 'still');
   assert.equal(stage.style.opacity, '0.900');
+});
+
+test('v3 renderer: per-eye levels/angles, independent haze, exact seeks and no live onset retiming', () => {
+  const node = () => ({ dataset: {}, style: {}, attributes: {}, classList: { add() {} },
+    setAttribute(name, value) { this.attributes[name] = value; } });
+  const beams = [node(), node()], glows = [node(), node()];
+  beams.forEach(beam => { const parts = {}; beam.querySelector = name => parts[name] ||= node(); });
+  const stage = node(), glowLayer = node();
+  stage.querySelectorAll = name => name === '.beam' ? beams : [];
+  glowLayer.querySelectorAll = () => glows;
+  const logo = { complete: true, getBoundingClientRect: () => ({ left: 0, top: 0, width: 300, height: 300 }) };
+  const audio = { currentTime: 0, playbackRate: 1 };
+  const reduce = { matches: false, addEventListener() {} };
+  const document = { hidden: false, querySelector: name => ({ '.searchlights': stage, '.eye-lights': glowLayer, '.logo': logo })[name],
+    getElementById: () => audio, addEventListener(name, listener) { events[name] = listener; } };
+  const events = {}, airFrames = [];
+  let callback, liveCalls = 0, rms = .1;
+  const context = { window: { DemeritScore: score,
+    DemeritAudio: { sample: () => { liveCalls++; return { ready: true, rms, hit: 1, hits: liveCalls, latency: 0 }; } },
+    DemeritAtmosphere: { create: () => ({ resize() {}, render: (...values) => airFrames.push(values) }) },
+    addEventListener: (name, listener) => { events[name] = listener; } }, document,
+    matchMedia: () => reduce, addEventListener() {}, innerWidth: 1280, innerHeight: 800,
+    requestAnimationFrame: listener => { callback = listener; return 1; }, cancelAnimationFrame() {}, Math };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../inc/searchlights.js'), 'utf8'), context);
+  const cues = makeV3();
+  events['demerit:playback']({ detail: { playing: true, advancing: true, cues } });
+  callback(0);
+  audio.currentTime = .5; callback(100);
+  const expected = score.read(cues, .5);
+  assert.equal(stage.style.opacity, '1');
+  assert.equal(glowLayer.style.opacity, '1');
+  assert.notEqual(beams[0].style.opacity, beams[1].style.opacity);
+  assert.deepEqual(Array.from(airFrames.at(-1)[1]), expected.angles, 'fog receives both scored head angles');
+  for (let i = 0; i < 2; i++) {
+    assert.ok(Math.abs(Number(beams[i].style.opacity) - expected.levels[i]) < .001);
+    assert.equal(glows[i].style.opacity, beams[i].style.opacity);
+    const angle = Number(beams[i].attributes.transform.match(/rotate\((.*?)\)/)[1]);
+    assert.ok(Math.abs(angle - expected.angles[i]) < .001);
+  }
+  audio.currentTime = 1.75; callback(200);
+  const later = score.read(cues, 1.75);
+  assert.ok(Math.abs(Number(beams[0].style.opacity) - later.levels[0]) < .001);
+  assert.equal(stage.dataset.pattern, 'score-groove');
+  const airBeforeSeek = airFrames.at(-1)[0];
+  audio.currentTime = .2; callback(300);
+  const earlier = score.read(cues, .2);
+  assert.ok(Math.abs(Number(beams[0].style.opacity) - earlier.levels[0]) < .001);
+  assert.equal(stage.dataset.pattern, 'score-quiet');
+  assert.ok(airFrames.at(-1)[0] > airBeforeSeek);
+  for (let i = 1; i <= 60; i++) {
+    audio.currentTime = .2 + i / 60;
+    callback(300 + i * 1000 / 60);
+  }
+  assert.ok(Math.abs(airFrames.at(-1)[2] - 166 / 255) < .001, 'haze follows its channel, not the beam average');
+  assert.ok(liveCalls < 45, 'live analysis runs below display frame rate');
+  rms = 0;
+  audio.currentTime = 1.8; callback(1500);
+  assert.ok(Number(beams[0].style.opacity) <= .34 && Number(beams[1].style.opacity) <= .34);
+  reduce.matches = true;
+  callback(1550);
+  assert.equal(beams[0].style.opacity, '0.900');
+  assert.deepEqual(Array.from(airFrames.at(-1)[1]), [145, 145]);
+  assert.ok(beams[0].attributes.transform.endsWith('rotate(145.000)'));
+  reduce.matches = false;
+  events['demerit:playback']({ detail: { playing: false, advancing: false, cues: makeV2() } });
+  callback(1600);
+  assert.equal(beams[0].style.opacity, '1', 'legacy score cannot inherit compiled per-eye levels');
+  assert.equal(glows[0].style.opacity, '1');
+  assert.notEqual(stage.style.opacity, '1');
+});
+
+test('atmosphere: two head directions reach both shader variants, scalar compatibility and context restoration', () => {
+  const uniforms = new Map(), shaders = [], events = {};
+  let draws = 0, prevented = 0;
+  const gl = {
+    VERTEX_SHADER: 1, FRAGMENT_SHADER: 2, HIGH_FLOAT: 3, COMPILE_STATUS: 4, LINK_STATUS: 5,
+    ARRAY_BUFFER: 6, STATIC_DRAW: 7, FLOAT: 8, TRIANGLES: 9,
+    getShaderPrecisionFormat: () => ({ precision: 23 }),
+    createShader: type => ({ type }), shaderSource(shader, code) { shader.code = code; shaders.push(shader); },
+    compileShader() {}, getShaderParameter: () => true, deleteShader() {},
+    createProgram: () => ({}), attachShader() {}, bindAttribLocation() {}, linkProgram() {},
+    getProgramParameter: () => true, getUniformLocation: (_, name) => name, useProgram() {},
+    createBuffer: () => ({}), bindBuffer() {}, bufferData() {}, enableVertexAttribArray() {}, vertexAttribPointer() {}, viewport() {},
+    uniform1f(name, ...values) { uniforms.set(name, values); },
+    uniform2f(name, ...values) { uniforms.set(name, values); },
+    uniform4f(name, ...values) { uniforms.set(name, values); },
+    drawArrays() { draws++; },
+  };
+  const canvas = { dataset: {}, hidden: false, getContext: () => gl,
+    addEventListener(name, listener) { events[name] = listener; } };
+  const context = { window: {}, matchMedia: () => ({ matches: false }), Float32Array, Math };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../inc/atmosphere.js'), 'utf8'), context);
+  const atmosphere = context.window.DemeritAtmosphere.create(canvas);
+  atmosphere.resize(1280, 800, [[100, 150], [200, 160]]);
+  atmosphere.render(10, [120, 147], .6);
+  const directions = uniforms.get('directions');
+  for (const [index, degrees] of [120, 147].entries()) {
+    assert.ok(Math.abs(directions[index * 2] - Math.cos(degrees * Math.PI / 180)) < 1e-10);
+    assert.ok(Math.abs(directions[index * 2 + 1] - Math.sin(degrees * Math.PI / 180)) < 1e-10);
+  }
+  assert.deepEqual(uniforms.get('time'), [10]);
+  atmosphere.render(11, 135, .5);
+  const shared = uniforms.get('directions');
+  assert.equal(shared[0], shared[2]); assert.equal(shared[1], shared[3]);
+  atmosphere.resize(390, 844, [[100, 150], [200, 160]]);
+  atmosphere.render(12, [118, 149], .45);
+  assert.equal(canvas.dataset.quality, 'compact');
+  const fragments = shaders.filter(shader => shader.type === gl.FRAGMENT_SHADER).map(shader => shader.code);
+  assert.equal(fragments.length, 2);
+  for (const shader of fragments) {
+    assert.ok(shader.includes('uniform vec4 directions;'));
+    assert.ok(shader.includes('light(p, eyes.xy, directions.xy, 0.0) + light(p, eyes.zw, directions.zw, 0.0)'));
+    assert.ok(shader.includes('light(p, eyes.xy, directions.xy, depth) + light(p, eyes.zw, directions.zw, depth)'));
+  }
+  assert.ok(fragments.some(shader => shader.startsWith('#define COMPACT')));
+  const beforeLoss = draws;
+  events.webglcontextlost({ preventDefault() { prevented++; } });
+  atmosphere.render(13, [116, 150], .4);
+  assert.equal(draws, beforeLoss); assert.equal(prevented, 1); assert.equal(canvas.hidden, true);
+  events.webglcontextrestored();
+  atmosphere.render(14, [121, 146], .7);
+  assert.ok(draws > beforeLoss); assert.equal(canvas.hidden, false);
+  const restored = uniforms.get('directions');
+  assert.ok(Math.abs(restored[0] - Math.cos(121 * Math.PI / 180)) < 1e-10);
+  assert.ok(Math.abs(restored[2] - Math.cos(146 * Math.PI / 180)) < 1e-10);
 });

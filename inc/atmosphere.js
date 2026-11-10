@@ -10,7 +10,7 @@
     uniform vec2 resolution;
     uniform vec2 viewport;
     uniform vec4 eyes;
-    uniform vec2 direction;
+    uniform vec4 directions;
     uniform float time;
     uniform float intensity;
 
@@ -38,10 +38,10 @@
       #endif
       return smoothstep(.28, .72, n);
     }
-    vec2 light(vec2 p, vec2 eye, float depth) {
+    vec2 light(vec2 p, vec2 eye, vec2 beamDirection, float depth) {
       vec2 delta = p - eye;
-      float along = dot(delta, direction);
-      float across = abs(delta.x * direction.y - delta.y * direction.x);
+      float along = dot(delta, beamDirection);
+      float across = abs(delta.x * beamDirection.y - delta.y * beamDirection.x);
       float travel = max(0.0, along);
       // A wide Gaussian scattering field, not a rotating visibility mask.
       // At 300px along the beam, its soft spill extends hundreds of pixels.
@@ -61,7 +61,7 @@
         vec3 air = vec3(p / vec2(200.0,155.0), .4) + vec3(-time*.040,time*.010,time*.022);
         vec3 sharedCurrent = vec3(noise(air*.6+vec3(8.1,time*.018,3.2)),
           noise(air*.6+vec3(2.6,9.4,time*.014)),0.0)-vec3(.5,.5,0.0);
-        vec2 sharedLight = light(p, eyes.xy, 0.0) + light(p, eyes.zw, 0.0);
+        vec2 sharedLight = light(p, eyes.xy, directions.xy, 0.0) + light(p, eyes.zw, directions.zw, 0.0);
         const int DEPTHS = 2;
       #else
         const int DEPTHS = 6;
@@ -81,7 +81,7 @@
           vec3 current = vec3(
             noise(world * .6 + vec3(8.1, time * .018, 3.2)),
             noise(world * .6 + vec3(2.6, 9.4, time * .014)), 0.0) - vec3(.5,.5,0.0);
-          vec2 incoming = light(p, eyes.xy, depth) + light(p, eyes.zw, depth);
+          vec2 incoming = light(p, eyes.xy, directions.xy, depth) + light(p, eyes.zw, directions.zw, depth);
         #endif
         float d = density(world + current * .5);
         // Always-visible faint ambient haze preserves cloud identity in darkness.
@@ -127,7 +127,7 @@
           gl.linkProgram(program);
           gl.deleteShader(vs); gl.deleteShader(fs);
           if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
-          const uniforms = Object.fromEntries(['resolution','viewport','eyes','direction','time','intensity']
+          const uniforms = Object.fromEntries(['resolution','viewport','eyes','directions','time','intensity']
             .map(name => [name, gl.getUniformLocation(program, name)]));
           variants.set(key, { key, program, uniforms });
         } catch (error) {
@@ -173,8 +173,13 @@
       gl.uniform2f(uniforms.resolution, canvas.width, canvas.height);
       gl.uniform2f(uniforms.viewport, width, height);
       gl.uniform4f(uniforms.eyes, ...origins);
-      const radians = degrees * Math.PI / 180;
-      gl.uniform2f(uniforms.direction, Math.cos(radians), Math.sin(radians));
+      // Older callers can supply a shared angle; compiled scores supply one
+      // for each head. Fog density/advection is unchanged by either direction.
+      const first = Array.isArray(degrees) ? degrees[0] : degrees;
+      const second = Array.isArray(degrees) ? degrees[1] : degrees;
+      const left = (Number.isFinite(first) ? first : 145) * Math.PI / 180;
+      const right = (Number.isFinite(second) ? second : Number.isFinite(first) ? first : 145) * Math.PI / 180;
+      gl.uniform4f(uniforms.directions, Math.cos(left), Math.sin(left), Math.cos(right), Math.sin(right));
       gl.uniform1f(uniforms.time, seconds);
       gl.uniform1f(uniforms.intensity, level);
       gl.drawArrays(gl.TRIANGLES, 0, 6);

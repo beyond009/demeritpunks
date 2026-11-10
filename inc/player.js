@@ -40,7 +40,7 @@
   async function loadCues(trackIndex) {
     const slug = slugs[trackIndex];
     if (!cueCache.has(slug)) {
-      cueCache.set(slug, fetch(`/audio/${slug}.json`).then(response => {
+      cueCache.set(slug, fetch(`/audio/${slug}.json?v=3`).then(response => {
         if (!response.ok) throw new Error('Cue data unavailable');
         return response.json();
       }).catch(() => { cueCache.delete(slug); return null; }));
