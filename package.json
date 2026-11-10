@@ -1,0 +1,11 @@
+{
+  "name": "demeritpunks",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
+  }
+}

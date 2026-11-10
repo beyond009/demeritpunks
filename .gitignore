@@ -10,3 +10,5 @@ docs/
 provenance/
 DEPLOYMENT.md
 logo-motion-preview.html
+node_modules/
+dist/

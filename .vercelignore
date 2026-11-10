@@ -12,3 +12,5 @@ work/
 **/__pycache__/
 **/*.pyc
 logo-motion-preview.html
+node_modules/
+dist/
