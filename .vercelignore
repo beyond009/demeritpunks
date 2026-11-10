@@ -1,0 +1,13 @@
+.git/
+.github/
+*.md
+docs/
+provenance/
+scripts/
+tests/
+work/
+.env
+.env.*
+*.local
+**/__pycache__/
+**/*.pyc

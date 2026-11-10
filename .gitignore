@@ -1,0 +1,11 @@
+.vercel/
+.DS_Store
+__pycache__/
+*.pyc
+.env
+.env.*
+*.local
+work/
+docs/
+provenance/
+DEPLOYMENT.md

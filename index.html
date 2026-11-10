@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Demerit — follow the band and get in touch.">
+  <meta property="og:site_name" content="Demerit">
+  <meta property="og:title" content="Demerit">
+  <meta property="og:image" content="https://demeritpunks.com/inc/logo.png">
+  <title>Demerit</title>
+  <link rel="icon" type="image/png" href="/inc/logo.png">
+  <link rel="preload" href="/inc/fonts/cabin-sketch-bold.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/inc/estilo.css">
+</head>
+<body>
+  <canvas class="atmosphere-canvas" aria-hidden="true"></canvas>
+  <svg class="searchlights" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="beam-haze" x="-30%" y="-200%" width="160%" height="500%"><feGaussianBlur stdDeviation="18"/></filter>
+      <filter id="beam-body" x="-30%" y="-200%" width="160%" height="500%"><feGaussianBlur stdDeviation="5"/></filter>
+      <filter id="beam-inner" x="-30%" y="-200%" width="160%" height="500%"><feGaussianBlur stdDeviation="3"/></filter>
+      <linearGradient id="beam-amber" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1400" y2="0">
+        <stop stop-color="#ffe6a0" stop-opacity="1"/>
+        <stop offset=".18" stop-color="#ffba4c" stop-opacity=".95"/>
+        <stop offset=".55" stop-color="#f58d28" stop-opacity=".55"/>
+        <stop offset="1" stop-color="#ad4a13" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <g class="beam" data-eye="left">
+      <path class="beam-halo" fill="url(#beam-amber)" filter="url(#beam-haze)"/>
+      <path class="beam-body" fill="url(#beam-amber)" filter="url(#beam-body)"/>
+      <path class="beam-inner" fill="url(#beam-amber)" filter="url(#beam-inner)"/>
+      <path class="beam-shaft" fill="url(#beam-amber)" filter="url(#beam-inner)"/>
+    </g>
+    <g class="beam" data-eye="right">
+      <path class="beam-halo" fill="url(#beam-amber)" filter="url(#beam-haze)"/>
+      <path class="beam-body" fill="url(#beam-amber)" filter="url(#beam-body)"/>
+      <path class="beam-inner" fill="url(#beam-amber)" filter="url(#beam-inner)"/>
+      <path class="beam-shaft" fill="url(#beam-amber)" filter="url(#beam-inner)"/>
+    </g>
+  </svg>
+  <svg class="eye-lights" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="ember">
+        <stop stop-color="#ffe0a0" stop-opacity=".9"/>
+        <stop offset=".12" stop-color="#ffc46a" stop-opacity=".7"/>
+        <stop offset=".3" stop-color="#f3a33f" stop-opacity=".3"/>
+        <stop offset="1" stop-color="#e77c22" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <circle data-glow="left" r="19" fill="url(#ember)"/>
+    <circle data-glow="right" r="21" fill="url(#ember)"/>
+  </svg>
+  <main id="centro" aria-label="Demerit">
+    <img class="logo" src="/inc/logo.png" width="420" height="437" alt="Demerit skull logo">
+    <h1>follow us on...</h1>
+    <nav class="socials" aria-label="Follow Demerit">
+      <a href="https://maybemars.org/index.php/artists/demerit/" target="_blank" rel="noopener noreferrer"><img src="/inc/maybemars.png" width="30" height="30" alt="Maybe Mars"></a>
+      <a href="https://www.facebook.com/pages/Demerit/134378803297954" target="_blank" rel="noopener noreferrer"><img src="/inc/Facebook.png" width="30" height="30" alt="Facebook"></a>
+      <a href="https://twitter.com/DemeritPunks" target="_blank" rel="noopener noreferrer"><img src="/inc/Twitter.png" width="30" height="30" alt="Twitter"></a>
+      <a href="https://www.youtube.com/user/DemeritPunx" target="_blank" rel="noopener noreferrer"><img src="/inc/youtube.png" width="30" height="30" alt="YouTube"></a>
+      <a href="https://www.last.fm/music/Demerit" target="_blank" rel="noopener noreferrer"><img src="/inc/lastfm.png" width="30" height="30" alt="Last.fm"></a>
+      <a href="https://www.myspace.com/demeritamry" target="_blank" rel="noopener noreferrer"><img src="/inc/Myspace.png" width="30" height="30" alt="Myspace"></a>
+      <a href="https://soundcloud.com/demerit" target="_blank" rel="noopener noreferrer"><img src="/inc/SoundCloud.png" width="30" height="30" alt="SoundCloud"></a>
+      <a href="https://site.douban.com/demeritpunks/" target="_blank" rel="noopener noreferrer"><img src="/inc/douban.png" width="30" height="30" alt="Douban"></a>
+      <a href="https://weibo.com/demeritpunk" target="_blank" rel="noopener noreferrer"><img src="/inc/weibo.png" width="30" height="30" alt="Weibo"></a>
+    </nav>
+    <p class="contact"><a href="mailto:contact@demeritpunks.com">contact@demeritpunks.com</a></p>
+
+  </main>
+  <section class="player" aria-label="Demerit music player">
+    <audio id="music" class="native-player" controls preload="metadata" src="/audio/walking-out-of-fog.mp3"></audio>
+    <div class="player-dock">
+      <div class="dock-track"><img class="album-thumb" src="/inc/logo.png" width="38" height="38" alt=""><div class="track-info"><h2 id="track-title">Walking Out of Fog</h2><p id="player-status" role="status">Demerit</p></div></div>
+      <div class="dock-center">
+        <div class="transport"><button id="previous" type="button" aria-label="Previous track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2v14H6zm13 0L9 12l10 7z"/></svg></button><button id="play" class="play-button" type="button" aria-label="Play"><svg class="play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 11 7-11 7z"/></svg><svg class="pause-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm7 0h4v14h-4z"/></svg></button><button id="next" type="button" aria-label="Next track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5h2v14h-2zM5 5l10 7-10 7z"/></svg></button></div>
+        <div class="timeline"><span id="elapsed">0:00</span><input id="seek" type="range" min="0" max="258.463" step=".1" value="0" aria-label="Seek" aria-valuetext="0:00" disabled><span id="duration">4:18</span></div>
+      </div>
+      <div class="dock-actions"><button id="queue-toggle" type="button" aria-label="Open playlist" aria-expanded="false" aria-controls="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v2H4zm0 6h16v2H4zm0 6h10v2H4zm13-1 5 3-5 3z"/></svg></button></div>
+    </div>
+    <div id="queue" class="queue" hidden>
+      <div class="player-heading"><span class="player-kicker">DEMERIT · 4 TRACKS</span><button id="queue-close" type="button" aria-label="Close playlist">×</button></div>
+      <ol class="playlist" aria-label="Tracks">
+        <li><button type="button" data-track="0" aria-current="true"><span class="track-number">01</span><span>Walking Out of Fog</span><span class="track-duration">4:18</span></button></li>
+        <li><button type="button" data-track="1"><span class="track-number">02</span><span>Barefaced Lies &amp; Bullshit Peace</span><span class="track-duration">3:55</span></button></li>
+        <li><button type="button" data-track="2"><span class="track-number">03</span><span>Childhood Nightmare</span><span class="track-duration">3:59</span></button></li>
+        <li><button type="button" data-track="3"><span class="track-number">04</span><span>Bye Bye My Country</span><span class="track-duration">3:13</span></button></li>
+      </ol>
+
+    </div>
+    <noscript><p><a href="/audio/barefaced-lies.mp3">Barefaced Lies &amp; Bullshit Peace</a> / <a href="/audio/childhood-nightmare.mp3">Childhood Nightmare</a></p></noscript>
+  </section>
+  <script src="/inc/audio-analysis.js" defer></script>
+  <script src="/inc/light-score.js" defer></script>
+  <script src="/inc/player.js" defer></script>
+  <script src="/inc/atmosphere.js" defer></script>
+  <script src="/inc/searchlights.js" defer></script>
+</body>
+</html>
