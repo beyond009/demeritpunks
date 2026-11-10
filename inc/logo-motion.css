@@ -1,0 +1,16 @@
+/* Local PNG layer rig; all sprites retain their original pixel coordinates. */
+.logo-rig { position: relative; aspect-ratio: 510 / 531; isolation: isolate; }
+.logo-rig img { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.logo-rig .logo-part { visibility: hidden; }
+.logo-rig.is-loaded .logo-part { visibility: visible; }
+.logo-rig.is-loaded .logo-fallback { visibility: hidden; }
+.logo-rig [data-part="jaw"] { transform-origin: 69.8% 71.6%; }
+.logo-rig [data-part="D"] { transform-origin: 10% 63%; }
+.logo-rig [data-part="e"] { transform-origin: 26% 68%; }
+.logo-rig [data-part="M"] { transform-origin: 40% 63%; }
+.logo-rig [data-part="E"] { transform-origin: 57% 70%; }
+.logo-rig [data-part="Ri"] { transform-origin: 76% 62%; }
+.logo-rig [data-part="T"] { transform-origin: 94% 60%; }
+@media (prefers-reduced-motion: reduce) {
+  .logo-rig .logo-part { transform: none !important; }
+}

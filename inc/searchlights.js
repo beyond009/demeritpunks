@@ -5,6 +5,7 @@
   const glows = [...glowLayer.querySelectorAll('[data-glow]')];
   const mistCanvas = document.querySelector('.atmosphere-canvas');
   const atmosphere = window.DemeritAtmosphere?.create(mistCanvas);
+  window.DemeritStageAtmosphere = atmosphere;
   if (mistCanvas && !atmosphere) mistCanvas.hidden = true;
   const logo = document.querySelector('.logo');
   const audio = document.getElementById('music');
@@ -175,6 +176,6 @@
     else measure();
   });
   reduce.addEventListener('change', measure);
-  if (logo.complete) measure();
+  if (logo.tagName !== 'IMG' || logo.complete) measure();
   else logo.addEventListener('load', measure, { once: true });
 })();

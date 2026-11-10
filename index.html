@@ -11,6 +11,7 @@
   <link rel="icon" type="image/png" href="/inc/logo.png">
   <link rel="preload" href="/inc/fonts/cabin-sketch-bold.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/inc/estilo.css">
+  <link rel="stylesheet" href="/inc/logo-motion.css?v=1">
 </head>
 <body>
   <canvas class="atmosphere-canvas" aria-hidden="true"></canvas>
@@ -52,7 +53,17 @@
     <circle data-glow="right" r="21" fill="url(#ember)"/>
   </svg>
   <main id="centro" aria-label="Demerit">
-    <img class="logo" src="/inc/logo.png" width="420" height="437" alt="Demerit skull logo">
+    <div class="logo logo-rig" role="img" aria-label="Demerit skull logo">
+      <img class="logo-fallback" src="/inc/logo.png" width="510" height="531" alt="">
+      <img class="logo-part" data-part="jaw" src="/inc/logo-layers/jaw.png?v=2" width="510" height="531" alt="" aria-hidden="true">
+      <img class="logo-part" data-part="D" src="/inc/logo-layers/D.png?v=2" width="510" height="531" alt="" aria-hidden="true">
+      <img class="logo-part" data-part="e" src="/inc/logo-layers/lower-e.png?v=2" width="510" height="531" alt="" aria-hidden="true">
+      <img class="logo-part" data-part="M" src="/inc/logo-layers/M.png?v=2" width="510" height="531" alt="" aria-hidden="true">
+      <img class="logo-part" data-part="E" src="/inc/logo-layers/upper-E.png?v=2" width="510" height="531" alt="" aria-hidden="true">
+      <img class="logo-part" data-part="Ri" src="/inc/logo-layers/Ri.png?v=2" width="510" height="531" alt="" aria-hidden="true">
+      <img class="logo-part" data-part="T" src="/inc/logo-layers/T.png?v=2" width="510" height="531" alt="" aria-hidden="true">
+      <img class="logo-part" data-part="head" src="/inc/logo-layers/head.png?v=2" width="510" height="531" alt="" aria-hidden="true">
+    </div>
     <h1>follow us on...</h1>
     <nav class="socials" aria-label="Follow Demerit">
       <a href="https://maybemars.org/index.php/artists/demerit/" target="_blank" rel="noopener noreferrer"><img src="/inc/maybemars.png" width="30" height="30" alt="Maybe Mars"></a>
@@ -93,7 +104,9 @@
   <script src="/inc/audio-analysis.js" defer></script>
   <script src="/inc/light-score.js?v=3" defer></script>
   <script src="/inc/player.js?v=3" defer></script>
-  <script src="/inc/atmosphere.js?v=3" defer></script>
-  <script src="/inc/searchlights.js?v=3" defer></script>
+  <script src="/inc/smoke-physics.js?v=7" defer></script>
+  <script src="/inc/atmosphere.js?v=fluid4" defer></script>
+  <script src="/inc/searchlights.js?v=mouth1" defer></script>
+  <script src="/inc/logo-motion.js?v=8" defer></script>
 </body>
 </html>

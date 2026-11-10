@@ -308,12 +308,18 @@ test('atmosphere: two head directions reach both shader variants, scalar compati
   const gl = {
     VERTEX_SHADER: 1, FRAGMENT_SHADER: 2, HIGH_FLOAT: 3, COMPILE_STATUS: 4, LINK_STATUS: 5,
     ARRAY_BUFFER: 6, STATIC_DRAW: 7, FLOAT: 8, TRIANGLES: 9,
+    TEXTURE0: 10, TEXTURE_2D: 11, UNPACK_ALIGNMENT: 12, UNPACK_FLIP_Y_WEBGL: 13,
+    TEXTURE_WRAP_S: 14, TEXTURE_WRAP_T: 15, CLAMP_TO_EDGE: 16, TEXTURE_MIN_FILTER: 17,
+    TEXTURE_MAG_FILTER: 18, LINEAR: 19, LUMINANCE: 20, UNSIGNED_BYTE: 21,
     getShaderPrecisionFormat: () => ({ precision: 23 }),
     createShader: type => ({ type }), shaderSource(shader, code) { shader.code = code; shaders.push(shader); },
     compileShader() {}, getShaderParameter: () => true, deleteShader() {},
     createProgram: () => ({}), attachShader() {}, bindAttribLocation() {}, linkProgram() {},
     getProgramParameter: () => true, getUniformLocation: (_, name) => name, useProgram() {},
     createBuffer: () => ({}), bindBuffer() {}, bufferData() {}, enableVertexAttribArray() {}, vertexAttribPointer() {}, viewport() {},
+    createTexture: () => ({}), activeTexture() {}, bindTexture() {}, pixelStorei() {},
+    texParameteri() {}, texImage2D() {}, texSubImage2D() {},
+    uniform1i(name, ...values) { uniforms.set(name, values); },
     uniform1f(name, ...values) { uniforms.set(name, values); },
     uniform2f(name, ...values) { uniforms.set(name, values); },
     uniform4f(name, ...values) { uniforms.set(name, values); },
@@ -321,7 +327,7 @@ test('atmosphere: two head directions reach both shader variants, scalar compati
   };
   const canvas = { dataset: {}, hidden: false, getContext: () => gl,
     addEventListener(name, listener) { events[name] = listener; } };
-  const context = { window: {}, matchMedia: () => ({ matches: false }), Float32Array, Math };
+  const context = { window: {}, matchMedia: () => ({ matches: false }), Float32Array, Uint8Array, Math };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../inc/atmosphere.js'), 'utf8'), context);
   const atmosphere = context.window.DemeritAtmosphere.create(canvas);
   atmosphere.resize(1280, 800, [[100, 150], [200, 160]]);
