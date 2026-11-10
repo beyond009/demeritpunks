@@ -6,7 +6,7 @@ const root = dirname(fileURLToPath(import.meta.url));
 const output = join(root, 'dist');
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
-for (const asset of ['index.html', 'inc', 'audio']) {
+for (const asset of ['index.html', 'robots.txt', 'sitemap.xml', 'inc', 'audio']) {
   await cp(join(root, asset), join(output, asset), { recursive: true });
 }
 
