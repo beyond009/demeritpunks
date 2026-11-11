@@ -14,6 +14,9 @@ import subprocess
 import numpy as np
 from scipy import ndimage, signal
 import librosa
+import sys
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from audio_tracks import catalog_tracks
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RATE, HOP, WINDOW, FPS = 22050, 220, 2048, 50
@@ -260,35 +263,54 @@ def encode(values):
 def bake_score(features,phrases,accents,events,beats,tempo,duration):
     times=np.arange(int(np.ceil(duration*FPS))+1)/FPS;n=len(times)
     mix=normalize(np.interp(times,np.arange(len(features['mix_rms']))*HOP/RATE,features['mix_rms'])**.65)
-    base=np.full(n,.38);period=np.full(n,18.);amplitude=np.full(n,15.);bias=np.zeros(n)
+    base=np.full(n,.38);period=np.full(n,22.);amplitude=np.full(n,15.);bias=np.zeros(n)
+    separation=np.zeros(n); stereo=np.zeros(n)
     for p in phrases:
         keep=(times>=p['start'])&(times<p['end']);kind=p['kind'];style=p['style']
         if kind=='quiet':base[keep]=.49;period[keep]=27;amplitude[keep]=12
-        elif kind=='groove':base[keep]=.35;period[keep]=np.clip(32*60/tempo,16,23);amplitude[keep]=14.5+style*.6
-        elif kind=='dense':base[keep]=.37;period[keep]=np.clip(32*60/tempo,13,18);amplitude[keep]=16.5
-        else:base[keep]=.36;period[keep]=15;amplitude[keep]=15.5
+        elif kind=='groove':base[keep]=.35;period[keep]=np.clip(48*60/tempo,20,28);amplitude[keep]=14.5+style*.6
+        elif kind=='dense':base[keep]=.37;period[keep]=np.clip(48*60/tempo,19,24);amplitude[keep]=16.5
+        else:base[keep]=.36;period[keep]=20;amplitude[keep]=15.5
         bias[keep]=[0,.8,-.8,0][style]
+        separation[keep]=[.12,1.35,2.8,-1.1][style] if kind!='quiet' else .28
+        stereo[keep]=[0,1,-1,.6][style] if kind!='quiet' else 0
     base=ndimage.gaussian_filter1d(base,.5*FPS)
     speed=ndimage.gaussian_filter1d(2*np.pi/period,.8*FPS)
     amplitude=ndimage.gaussian_filter1d(amplitude,.8*FPS)
     bias=ndimage.gaussian_filter1d(bias,.8*FPS)
+    separation=ndimage.gaussian_filter1d(separation,2.8*FPS)
+    stereo=ndimage.gaussian_filter1d(stereo,1.2*FPS)
     phase=1+np.cumsum(speed)/FPS
     breath=.025*np.sin(times*2*np.pi/8)+.015*mix
-    left=base+breath;right=base+breath
+    left=base+breath+.035*stereo;right=base+breath-.035*stereo
     pulse_l=np.zeros(n);pulse_r=np.zeros(n)
     for a in accents:
         kind=a['type'];strength=a['strength'];side=a['side']
-        attack,hold,release={'kick':(.035,.065,.13),'snare':(.025,.03,.075),
-                            'fill':(.025,.04,.09),'impact':(.04,.09,.18)}[kind]
+        attack,hold,release={'kick':(.012,.025,.095),'snare':(.010,.02,.065),
+                            'fill':(.010,.02,.075),'impact':(.015,.06,.19)}[kind]
         phrase=phrase_at(phrases,a['time'])
         variation=[.92,1.,1.08,.97][phrase['style']]
         hold*=variation;release*=variation
         peak=(.43+.17*strength)*([.97,1.,1.03,1.][phrase['style']])
         l,r=1.,1.
-        if side==0:r=.86
-        if side==1:l=.86
-        add_envelope(pulse_l,a['time'],peak*l,attack,hold,release)
-        add_envelope(pulse_r,a['time'],peak*r,attack,hold,release)
+        if side==0:r=.35
+        if side==1:l=.35
+        # Peak at the decoded drum attack, rather than starting a slow rise
+        # there and adding another 25–40ms of visible delay.
+        onset=max(0,a['time']-attack)
+        add_envelope(pulse_l,onset,peak*l,attack,hold,release)
+        add_envelope(pulse_r,onset,peak*r,attack,hold,release)
+    # The main cadence remains readable; softer real snare attacks between it
+    # add alternating backbeats. No synthetic beat-grid flashes are inserted.
+    last_secondary=-1
+    for event in events:
+        t=event['time']; p=phrase_at(phrases,t)
+        if event['type']!='snare' or event['strength']<.3 or p['kind']=='quiet':continue
+        if any(abs(t-a['time'])<.18 for a in accents) or t-last_secondary<.22:continue
+        side=int(t*tempo/60)%2
+        channel=pulse_l if side==0 else pulse_r
+        add_envelope(channel,max(0,t-.01),.14+.1*event['strength'],.01,.015,.06)
+        last_secondary=t
     left=np.clip(left+pulse_l,.34,.98);right=np.clip(right+pulse_r,.34,.98)
     wash=np.zeros(n)
     for event in events:
@@ -297,7 +319,11 @@ def bake_score(features,phrases,accents,events,beats,tempo,duration):
     haze=np.clip(.40+.12*smooth(mix,.25,FPS)+wash+.12*smooth(np.maximum(pulse_l,pulse_r),.16,FPS),.34,.86)
     center=132.5
     angle_l=center+amplitude*np.sin(phase)+bias*.3
-    angle_r=center+amplitude*np.sin(phase+.035)+bias*.3
+    angle_r=center+amplitude*np.sin(phase+separation)+bias*.3
+    # Bound head velocity across phrase transitions. Sampling remains seekable
+    # because the slew is baked offline, never accumulated by the browser.
+    for channel in [angle_l,angle_r]:
+        for i in range(1,n):channel[i]=np.clip(channel[i],channel[i-1]-.16,channel[i-1]+.16)
     channels={'left':encode(left),'right':encode(right),'haze':encode(haze),
               'angleLeft':encode((np.clip(angle_l,115,150)-115)/35),
               'angleRight':encode((np.clip(angle_r,115,150)-115)/35)}
@@ -319,22 +345,24 @@ def analyze(stem,mix,duration=None):
           'analysis':{'separator':'htdemucs','method':'drum-stem/band-attacks/dynamic-beat-tracking/phrase-score','phraseLabels':'estimated',
                       'instrumentLabels':'estimated','tempo':round(tempo,2),'events':counts,
                       'crashes':sum(e.get('crash',False) for e in features['events']),
-                      'stemOffsetSamples':0,'stemSampleRate':RATE}}
+                      'stemOffsetSamples':0,'stemSampleRate':RATE,'arrangement':4}}
     return cues,features
 
 
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--stems',type=pathlib.Path,required=True)
-    parser.add_argument('--track',choices=TRACKS,action='append')
+    sources=catalog_tracks()
+    parser.add_argument('--track',choices=list(sources),action='append')
+    parser.add_argument('--all',action='store_true')
     parser.add_argument('--diagnostics',type=pathlib.Path)
     args=parser.parse_args()
-    for slug in args.track or TRACKS:
-        mp3=ROOT/'audio'/f'{slug}.mp3';stem_path=args.stems/f'{slug}.wav'
+    for slug in (list(sources) if args.all else args.track or TRACKS):
+        mp3=sources[slug];stem_path=args.stems/f'{slug}.wav'
         mix,stem=decode(mp3),decode(stem_path)
         cues,features=analyze(stem,mix)
         cues['analysis']['sourceSha256']=hashlib.sha256(mp3.read_bytes()).hexdigest()
-        (ROOT/'audio'/f'{slug}.json').write_text(json.dumps(cues,separators=(',',':'))+'\n')
+        mp3.with_suffix('.json').write_text(json.dumps(cues,separators=(',',':'))+'\n')
         if args.diagnostics:
             args.diagnostics.mkdir(parents=True,exist_ok=True)
             diagnostic={'phrases':cues['phrases'],'analysis':cues['analysis'],'events':features['events'],

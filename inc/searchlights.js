@@ -31,11 +31,9 @@
     const rawTime = audio?.currentTime || 0;
     const jumped = Math.abs(rawTime - lastAudioTime) > .35;
     lastAudioTime = rawTime;
-    if (!sound.advancing || jumped) clock = rawTime;
-    else {
-      clock += dt * (audio.playbackRate || 1);
-      clock += (rawTime - clock) * (1 - Math.exp(-dt * 12));
-    }
+    // The decoded media timeline is authoritative. Integrating clamped frame
+    // deltas made lights lag after a busy frame and drift during slow devices.
+    clock = rawTime;
     if (jumped || !sound.advancing) {
       liveSample = null;
       lastLiveFrame = -Infinity;
@@ -47,7 +45,7 @@
       lastLiveFrame = timestamp;
     }
     const live = sound.advancing ? liveSample : null;
-    const audibleTime = Math.max(0, clock - (live?.latency || 0));
+    const audibleTime = Math.max(0, clock - (live?.latency || 0) * (audio.playbackRate || 1));
     const score = window.DemeritScore.read(sound.cues, audibleTime);
     const compiled = score.version === 3;
     const drums = score.mode === 'drums';
@@ -121,13 +119,14 @@
     if (animate) mistTime += dt;
     mistLight += (haze - mistLight) * (1 - Math.exp(-dt * (haze > mistLight ? 10 : 4)));
     if (atmosphere && (!animate || timestamp - lastMistFrame >= mistInterval)) {
-      atmosphere.render(mistTime, angles, mistLight);
+      atmosphere.render(mistTime, angles, mistLight, levels);
       lastMistFrame = timestamp;
     }
     setData('mode', sound.playing ? 'music' : 'idle');
     setData('pattern', pattern);
     setData('analysis', compiled ? 'drum-stem-score' : live?.ready ? 'live-fft+hpss' : 'hpss-score');
     setData('onsets', live?.hits || 0);
+    setData('syncDelayMs', Math.round((live?.latency || 0) * 1000));
     if (animate) schedule();
   }
 

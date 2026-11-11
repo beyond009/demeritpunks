@@ -73,7 +73,21 @@
     history.push(novelty);
     if (history.length > 90) history.shift();
     warming++;
-    return { ready: true, rms, hit, hits, novelty, latency: Math.min(.2, context.outputLatency || context.baseLatency || 0) };
+    return { ready: true, rms, hit, hits, novelty, latency: outputDelay() };
+  }
+
+  function outputDelay() {
+    // Map the device's audible sample clock to the rendering clock. This
+    // includes Bluetooth/device buffering and avoids counting baseLatency
+    // twice when the browser exposes the actual output timestamp.
+    const stamp = context.getOutputTimestamp?.();
+    if (stamp?.performanceTime > 0 && Number.isFinite(stamp.contextTime) &&
+        typeof performance !== 'undefined') {
+      const age = (performance.now() - stamp.performanceTime) / 1000;
+      const lag = context.currentTime - stamp.contextTime - age;
+      if (age >= 0 && age < .5 && Number.isFinite(lag)) return Math.max(0, Math.min(1, lag));
+    }
+    return Math.min(1, (context.outputLatency || 0) + (context.baseLatency || 0));
   }
 
   ['seeking', 'emptied', 'pause', 'waiting', 'playing'].forEach(event => audio.addEventListener(event, reset));

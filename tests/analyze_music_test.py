@@ -16,6 +16,22 @@ def hit(samples,time,frequency,decay=30):
 
 
 class PercussionTest(unittest.TestCase):
+    def test_accent_peaks_at_attack_and_heads_follow_distinct_smooth_paths(self):
+        duration=40
+        features={'mix_rms':np.ones(int(duration*a.RATE/a.HOP)+1)}
+        phrases=[{'start':i*10,'end':(i+1)*10,'kind':'groove','style':i} for i in range(4)]
+        accents=[{'time':5,'type':'snare','strength':1,'side':0}]
+        channels=a.bake_score(features,phrases,accents,[],[],140,duration)
+        values={name:np.frombuffer(base64.b64decode(data),dtype=np.uint8).astype(float)/255 for name,data in channels.items()}
+        around=values['left'][int(4.9*a.FPS):int(5.15*a.FPS)]
+        peak_time=4.9+np.argmax(around)/a.FPS
+        self.assertLessEqual(abs(peak_time-5),.021)
+        self.assertGreater(values['left'][5*a.FPS]-values['right'][5*a.FPS],.25)
+        difference=np.abs(values['angleLeft']-values['angleRight'])*35
+        self.assertGreater(np.mean(difference>8),.35)
+        for name in ['angleLeft','angleRight']:
+            self.assertLessEqual(np.max(np.abs(np.diff(values[name])))*35*a.FPS,14)
+
     def test_guitar_mix_with_silent_drum_stem_has_no_accents(self):
         t=np.arange(a.RATE*8)/a.RATE
         guitar=.2*np.tanh(4*np.sin(2*np.pi*220*t))

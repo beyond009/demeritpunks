@@ -3,7 +3,7 @@
    No animation loop, light input, images, or DOM access lives in this module. */
 (() => {
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
-  const MAX_DENSITY = 4.5; // A 12.5% higher concentration ceiling.
+  const MAX_DENSITY = 4.5;
   const finite = (value, fallback) => Number.isFinite(value) ? value : fallback;
 
   function create() {
@@ -112,8 +112,8 @@
       if (!emission.active || emission.openness <= .16 || emission.breath <= .1) return;
       const strength = emission.breath * clamp((emission.openness - .12) / .6, 0, 1);
       const centerX = emission.x / dx + .5, centerY = emission.y / dy + .5;
-      const radiusX = Math.max(1.2, 27 * emission.scale / dx);
-      const radiusY = Math.max(1.15, 18 * emission.scale / dy);
+      const radiusX = Math.max(1.2, 34 * emission.scale / dx);
+      const radiusY = Math.max(1.15, 23 * emission.scale / dy);
       const left = Math.max(1, Math.floor(centerX - radiusX * 2.5));
       const right = Math.min(nx, Math.ceil(centerX + radiusX * 2.5));
       const top = Math.max(1, Math.floor(centerY - radiusY * 2.5));
@@ -124,7 +124,7 @@
           const rx = (x - centerX) / radiusX, ry = (y - centerY) / radiusY;
           const weight = Math.exp(-.5 * (rx * rx + ry * ry));
           const at = y * pitch + x;
-          density[at] = Math.min(MAX_DENSITY, density[at] + dt * strength * weight * 11.7);
+          density[at] = Math.min(MAX_DENSITY, density[at] + dt * strength * weight * 18.5);
           const blend = 1 - Math.exp(-dt * weight * strength * 9);
           // A sideways exhalation has a slight downward aim; buoyancy later
           // turns the advected cloud upwards, rather than turning its source.
@@ -205,7 +205,7 @@
     }
 
     function advect(dt) {
-      const decay = Math.exp(-dt / 19);
+      const decay = Math.exp(-dt / 27);
       for (let y = 1; y <= ny; y++) {
         for (let x = 1; x <= nx; x++) {
           const at = y * pitch + x;

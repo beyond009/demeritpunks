@@ -126,12 +126,13 @@ test('slow sweep always points down and has smooth velocity', () => {
 test('Web Audio: one audible route across tracks; real transients; reset and fallback', () => {
   const listeners = {};
   const element = { addEventListener: (name, fn) => { listeners[name] = fn; } };
-  let sources = 0, outputRoutes = 0, db = -80;
+  let sources = 0, outputRoutes = 0, db = -80, outputStamp = null;
   const analyser = { fftSize: 2048, frequencyBinCount: 1024,
     getFloatFrequencyData: out => out.fill(db),
     getFloatTimeDomainData: out => out.fill(db === -80 ? .002 : .1) };
   class AudioContext {
-    state = 'running'; sampleRate = 44100; outputLatency = .02; destination = {};
+    state = 'running'; sampleRate = 44100; outputLatency = .02; baseLatency = .01; currentTime = 10; destination = {};
+    getOutputTimestamp() { return outputStamp; }
     createAnalyser() { return analyser; }
     createMediaElementSource(audio) {
       assert.equal(audio, element); sources++;
@@ -141,7 +142,7 @@ test('Web Audio: one audible route across tracks; real transients; reset and fal
   }
   const context = { window: { AudioContext }, document: {
     getElementById: () => element, addEventListener() {},
-  }, Float32Array, Math };
+  }, Float32Array, Math, performance: { now: () => 10000 } };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../inc/audio-analysis.js'), 'utf8'), context);
   const api = context.window.DemeritAudio;
   assert.equal(api.sample(0).ready, false);
@@ -156,6 +157,11 @@ test('Web Audio: one audible route across tracks; real transients; reset and fal
   listeners.emptied(); api.start();
   assert.equal(sources, 1); assert.equal(outputRoutes, 1);
   assert.equal(api.sample(0).hit, 0);
+  assert.ok(Math.abs(api.sample(.1).latency - .03) < 1e-8, 'fallback includes render and device buffering');
+  outputStamp = { contextTime: 9.84, performanceTime: 9980 };
+  assert.ok(Math.abs(api.sample(.2).latency - .14) < 1e-8, 'timestamp delay is extrapolated to this display frame without double counting');
+  outputStamp = { contextTime: 9, performanceTime: 8000 };
+  assert.ok(Math.abs(api.sample(.3).latency - .03) < 1e-8, 'stale timestamps use the fallback');
 });
 
 test('render loop: actual track changes from continuous narrow sweep, percussion crossfade and base light; pause/seek/reduced motion', () => {
@@ -247,9 +253,9 @@ test('v3 renderer: per-eye levels/angles, independent haze, exact seeks and no l
   const document = { hidden: false, querySelector: name => ({ '.searchlights': stage, '.eye-lights': glowLayer, '.logo': logo })[name],
     getElementById: () => audio, addEventListener(name, listener) { events[name] = listener; } };
   const events = {}, airFrames = [];
-  let callback, liveCalls = 0, rms = .1;
+  let callback, liveCalls = 0, rms = .1, latency = 0;
   const context = { window: { DemeritScore: score,
-    DemeritAudio: { sample: () => { liveCalls++; return { ready: true, rms, hit: 1, hits: liveCalls, latency: 0 }; } },
+    DemeritAudio: { sample: () => { liveCalls++; return { ready: true, rms, hit: 1, hits: liveCalls, latency }; } },
     DemeritAtmosphere: { create: () => ({ resize() {}, render: (...values) => airFrames.push(values) }) },
     addEventListener: (name, listener) => { events[name] = listener; } }, document,
     matchMedia: () => reduce, addEventListener() {}, innerWidth: 1280, innerHeight: 800,
@@ -295,6 +301,14 @@ test('v3 renderer: per-eye levels/angles, independent haze, exact seeks and no l
   assert.deepEqual(Array.from(airFrames.at(-1)[1]), [145, 145]);
   assert.ok(beams[0].attributes.transform.endsWith('rotate(145.000)'));
   reduce.matches = false;
+  rms = .1; latency = .12; audio.playbackRate = 2;
+  events['demerit:playback']({ detail: { playing: true, advancing: true, cues } });
+  audio.currentTime = .8; callback(1700);
+  assert.ok(Math.abs(Number(beams[0].style.opacity) - score.read(cues, .56).levels[0]) < .001,
+    'device output delay is converted into media seconds at the current playback rate');
+  audio.currentTime = .9; callback(1950);
+  assert.ok(Math.abs(Number(beams[0].style.opacity) - score.read(cues, .66).levels[0]) < .001,
+    'a delayed display frame samples the media clock directly without accumulating drift');
   events['demerit:playback']({ detail: { playing: false, advancing: false, cues: makeV2() } });
   callback(1600);
   assert.equal(beams[0].style.opacity, '1', 'legacy score cannot inherit compiled per-eye levels');
@@ -331,7 +345,8 @@ test('atmosphere: two head directions reach both shader variants, scalar compati
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../inc/atmosphere.js'), 'utf8'), context);
   const atmosphere = context.window.DemeritAtmosphere.create(canvas);
   atmosphere.resize(1280, 800, [[100, 150], [200, 160]]);
-  atmosphere.render(10, [120, 147], .6);
+  atmosphere.render(10, [120, 147], .6, [.4, .9]);
+  assert.deepEqual(uniforms.get('headLevels'), [.4, .9]);
   const directions = uniforms.get('directions');
   for (const [index, degrees] of [120, 147].entries()) {
     assert.ok(Math.abs(directions[index * 2] - Math.cos(degrees * Math.PI / 180)) < 1e-10);
@@ -339,6 +354,7 @@ test('atmosphere: two head directions reach both shader variants, scalar compati
   }
   assert.deepEqual(uniforms.get('time'), [10]);
   atmosphere.render(11, 135, .5);
+  assert.deepEqual(uniforms.get('headLevels'), [1, 1]);
   const shared = uniforms.get('directions');
   assert.equal(shared[0], shared[2]); assert.equal(shared[1], shared[3]);
   atmosphere.resize(390, 844, [[100, 150], [200, 160]]);
@@ -348,8 +364,8 @@ test('atmosphere: two head directions reach both shader variants, scalar compati
   assert.equal(fragments.length, 2);
   for (const shader of fragments) {
     assert.ok(shader.includes('uniform vec4 directions;'));
-    assert.ok(shader.includes('light(p, eyes.xy, directions.xy, 0.0) + light(p, eyes.zw, directions.zw, 0.0)'));
-    assert.ok(shader.includes('light(p, eyes.xy, directions.xy, depth) + light(p, eyes.zw, directions.zw, depth)'));
+    assert.ok(shader.includes('light(p, eyes.xy, directions.xy, 0.0) * headLevels.x + light(p, eyes.zw, directions.zw, 0.0) * headLevels.y'));
+    assert.ok(shader.includes('light(p, eyes.xy, directions.xy, depth) * headLevels.x + light(p, eyes.zw, directions.zw, depth) * headLevels.y'));
   }
   assert.ok(fragments.some(shader => shader.startsWith('#define COMPACT')));
   const beforeLoss = draws;

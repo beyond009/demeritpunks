@@ -63,6 +63,7 @@ test('actual long-exhalation profile fills the room to a bounded peak, then grad
   assert.ok(Math.max(...peaks.slice(1)) > peaks[0] * 1.15, { peaks });
   assert.ok(peaks.slice(2).every(mass => mass > peaks[0] && mass < peaks[0] * 1.5), { peaks });
   const first = snapshots.get(12), full = snapshots.get(44), stopped = snapshots.get(78);
+  assert.ok(first.mass > 150000, 'the wider source produces visibly more smoke in the first breath');
   assert.ok(full.occupied > first.occupied * 1.3, { first, full });
   assert.ok(full.occupied > fluid.field.width * fluid.field.height * .6, full);
   assert.ok(full.width > 350 && full.height > 550, full);
@@ -76,7 +77,9 @@ test('actual long-exhalation profile fills the room to a bounded peak, then grad
   assert.ok(afterTwenty.mass < afterTen.mass * .6 && afterTwenty.mass > 0,
     { afterTen, afterTwenty });
   assert.ok(later.mass < stopped.mass * .06 && later.mass > 0, { stopped, later });
-  assert.ok(later.occupied < full.occupied * .5, { full, later });
+  // The thicker plume remains visible longer, while its mass still falls
+  // below 6% after forty seconds with no emission.
+  assert.ok(later.occupied < full.occupied * .75, { full, later });
 });
 
 test('a long exhalation quickly carries smoke away from the mouth before buoyancy takes over', () => {

@@ -15,6 +15,7 @@
     uniform vec4 directions;
     uniform float time;
     uniform float intensity;
+    uniform vec2 headLevels;
     uniform float mouthMode;
     uniform sampler2D smokeDensity;
 
@@ -76,7 +77,7 @@
         vec3 air = vec3(p / grain, .4) + vec3(-time*.040,time*.010,time*.022);
         vec3 sharedCurrent = vec3(noise(air*.6+vec3(8.1,time*.018,3.2)),
           noise(air*.6+vec3(2.6,9.4,time*.014)),0.0)-vec3(.5,.5,0.0);
-        vec2 sharedLight = light(p, eyes.xy, directions.xy, 0.0) + light(p, eyes.zw, directions.zw, 0.0);
+        vec2 sharedLight = light(p, eyes.xy, directions.xy, 0.0) * headLevels.x + light(p, eyes.zw, directions.zw, 0.0) * headLevels.y;
         const int DEPTHS = 2;
       #else
         const int DEPTHS = 6;
@@ -97,14 +98,14 @@
           vec3 current = vec3(
             noise(world * .6 + vec3(8.1, time * .018, 3.2)),
             noise(world * .6 + vec3(2.6, 9.4, time * .014)), 0.0) - vec3(.5,.5,0.0);
-          vec2 incoming = light(p, eyes.xy, directions.xy, depth) + light(p, eyes.zw, directions.zw, depth);
+          vec2 incoming = light(p, eyes.xy, directions.xy, depth) * headLevels.x + light(p, eyes.zw, directions.zw, depth) * headLevels.y;
         #endif
         float d = density(world + current * .5) * cloud;
         // Always-visible faint ambient haze preserves cloud identity in darkness.
-        vec3 ambient = vec3(.060, .057, .050);
+        vec3 ambient = vec3(.085, .080, .071);
         vec3 scattered = vec3(1.0, .75, .45) * incoming.x * (.18 + intensity * .82) * .125;
         vec3 shaft = vec3(1.0, .81, .53) * incoming.y * intensity * .10;
-        float sourceGain = 1.0 + mouthMode * 3.5;
+        float sourceGain = 1.0 + mouthMode * 4.2;
         fog += d * (ambient + (scattered + shaft) * sourceGain) / float(DEPTHS);
       }
       // Thin fog, without opaque smoke puffs or a full-page colour wash.
@@ -144,7 +145,7 @@
           gl.linkProgram(program);
           gl.deleteShader(vs); gl.deleteShader(fs);
           if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
-          const uniforms = Object.fromEntries(['resolution','viewport','eyes','directions','time','intensity','mouthMode','smokeDensity']
+          const uniforms = Object.fromEntries(['resolution','viewport','eyes','directions','time','intensity','headLevels','mouthMode','smokeDensity']
             .map(name => [name, gl.getUniformLocation(program, name)]));
           variants.set(key, { key, program, uniforms });
         } catch (error) {
@@ -257,7 +258,7 @@
       canvas.height = Math.max(1, Math.round(h * scale));
       gl.viewport(0, 0, canvas.width, canvas.height);
     }
-    function render(seconds, degrees, level) {
+    function render(seconds, degrees, level, levels = [1, 1]) {
       step(seconds);
       if (lost || !selected) return;
       uploadDensity();
@@ -274,6 +275,7 @@
       gl.uniform4f(uniforms.directions, Math.cos(left), Math.sin(left), Math.cos(right), Math.sin(right));
       gl.uniform1f(uniforms.time, seconds);
       gl.uniform1f(uniforms.intensity, level);
+      gl.uniform2f(uniforms.headLevels, ...levels.map(value => clamp(finite(value, 1), 0, 1)));
       gl.uniform1f(uniforms.mouthMode, mouthMode ? 1 : 0);
       gl.uniform1i(uniforms.smokeDensity, 0);
       gl.drawArrays(gl.TRIANGLES, 0, 6);

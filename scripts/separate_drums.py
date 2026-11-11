@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import subprocess
 import time
+from audio_tracks import catalog_tracks
 
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT.parent.parent
@@ -21,7 +22,9 @@ TRACKS = ['childhood-nightmare', 'walking-out-of-fog', 'barefaced-lies', 'bye-by
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('tracks', nargs='*', choices=TRACKS)
+    sources = catalog_tracks()
+    parser.add_argument('tracks', nargs='*')
+    parser.add_argument('--all', action='store_true', help='Process every track in the site catalog')
     parser.add_argument('--work', type=Path, default=DEFAULT_WORK)
     parser.add_argument('--device', choices=['auto', 'cpu', 'mps'], default='auto')
     parser.add_argument('--threads', type=int, default=4)
@@ -30,6 +33,9 @@ def main():
     parser.add_argument('--shifts', type=int, default=0)
     parser.add_argument('--force', action='store_true')
     args = parser.parse_args()
+    requested = list(sources) if args.all else args.tracks or TRACKS
+    if any(track not in sources for track in requested):
+        parser.error('Unknown catalog track')
     work = args.work.resolve()
     cache = work / 'model-cache'
     for key, path in {'HF_HOME': cache / 'huggingface', 'HUGGINGFACE_HUB_CACHE': cache / 'huggingface/hub',
@@ -69,14 +75,14 @@ def main():
                       'channels': separator.audio_channels}, ensure_ascii=False), flush=True)
     out_dir = work / 'drum-stems'
     out_dir.mkdir(parents=True, exist_ok=True)
-    for slug in args.tracks or TRACKS:
+    for slug in requested:
         output = out_dir / f'{slug}.wav'
         metadata = out_dir / f'{slug}.json'
         if output.exists() and metadata.exists() and not args.force:
             print(json.dumps({'event': 'skipped-existing', 'path': str(output)}), flush=True)
             continue
         started = time.perf_counter()
-        source = ROOT / 'audio' / f'{slug}.mp3'
+        source = sources[slug]
         # The same FFmpeg decoder/sample origin as the browser score pipeline.
         # No silence trim, loudness normalize, time stretch, or stem rescaling.
         raw = subprocess.check_output(['ffmpeg', '-v', 'error', '-i', str(source), '-f', 'f32le',
