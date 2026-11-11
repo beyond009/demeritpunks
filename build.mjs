@@ -19,13 +19,6 @@ await writeFile(join(output, 'inc', socialImageName), socialImage);
 const homepage = (await readFile(join(root, 'index.html'), 'utf8'))
   .replaceAll('/inc/social-card.jpg', `/inc/${socialImageName}`);
 await writeFile(join(output, 'index.html'), homepage);
-// A separate, directly served URL offers a fresh card cache key for sharing.
-// It displays the same homepage; canonical remains / to avoid duplicate SEO.
-await mkdir(join(output, 'share'), { recursive: true });
-await writeFile(join(output, 'share/index.html'), homepage.replace(
-  '<meta property="og:url" content="https://demeritpunks.com/">',
-  '<meta property="og:url" content="https://demeritpunks.com/share">',
-));
 
 // The SDK is a standalone browser module; the rest of the site stays static.
 const sdk = await readFile(join(root, 'node_modules/@vercel/analytics/dist/index.mjs'), 'utf8');
