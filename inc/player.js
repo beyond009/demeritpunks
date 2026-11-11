@@ -23,7 +23,8 @@
 
   function renderQueue() {
     albumSelect.value = queueAlbum.id;
-    queue.querySelector('.player-kicker').textContent = `${queueAlbum.title.toUpperCase()} · ${queueAlbum.tracks.length} TRACKS`;
+    const count = queueAlbum.tracks.length;
+    queue.querySelector('.player-kicker').textContent = `${queueAlbum.title.toUpperCase()} · ${count} ${count === 1 ? 'TRACK' : 'TRACKS'}`;
     playlist.setAttribute('aria-label', `${queueAlbum.title} tracks`);
     playlist.replaceChildren(...queueAlbum.tracks.map((item, position) => {
       const li = document.createElement('li');
