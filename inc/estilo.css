@@ -138,6 +138,12 @@ body { padding-bottom: 92px; }
 .player-kicker { font-size: 9px; letter-spacing: 1.8px; color: #a99a88; }
 #queue-close { font-size: 20px; padding: 0 4px; color: #9c8e7d; }
 .playlist { list-style: none; margin: 8px 0 10px; padding: 0; }
+.queue { box-sizing: border-box; max-height: calc(100svh - 125px); overflow-y: auto; overscroll-behavior: contain; }
+.album-picker { display: block; margin-top: 12px; }
+.album-picker select { box-sizing: border-box; width: 100%; padding: 7px 8px; border: 1px solid #92857880; border-radius: 0; background: #0b0806; color: #d8cbb7; font: inherit; font-size: 14px; cursor: pointer; }
+.album-picker select:focus-visible { outline: 2px solid #e5af67; outline-offset: 3px; }
+.track-name { min-width: 0; overflow-wrap: anywhere; }
+.track-number, .track-duration { flex-shrink: 0; }
 .playlist button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 11px 0; text-align: left; font-size: 10px; line-height: 1.5; color: #aba197; }
 .playlist button[aria-current] { color: #edb770; }
 .track-number { font-size: 8px; color: #736658; }

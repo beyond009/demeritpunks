@@ -63,7 +63,7 @@
   </script>
   <link rel="icon" type="image/png" href="/inc/logo.png">
   <link rel="preload" href="/inc/fonts/cabin-sketch-bold.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/inc/estilo.css">
+  <link rel="stylesheet" href="/inc/estilo.css?v=d22-1">
   <link rel="stylesheet" href="/inc/logo-motion.css?v=1">
 </head>
 <body>
@@ -144,6 +144,7 @@
     </div>
     <div id="queue" class="queue" hidden>
       <div class="player-heading"><span class="player-kicker">DEMERIT · 4 TRACKS</span><button id="queue-close" type="button" aria-label="Close playlist">×</button></div>
+      <label class="album-picker" for="album-select"><span class="sr-only">Choose album</span><select id="album-select" aria-label="Choose album"><option value="demerit">Demerit</option><option value="live-at-d22">Live @ D22</option></select></label>
       <ol class="playlist" aria-label="Tracks">
         <li><button type="button" data-track="0" aria-current="true"><span class="track-number">01</span><span>Walking Out of Fog</span><span class="track-duration">4:18</span></button></li>
         <li><button type="button" data-track="1"><span class="track-number">02</span><span>Barefaced Lies &amp; Bullshit Peace</span><span class="track-duration">3:55</span></button></li>
@@ -156,7 +157,8 @@
   </section>
   <script src="/inc/audio-analysis.js" defer></script>
   <script src="/inc/light-score.js?v=3" defer></script>
-  <script src="/inc/player.js?v=3" defer></script>
+  <script src="/inc/catalog.js?v=d22-1" defer></script>
+  <script src="/inc/player.js?v=d22-1" defer></script>
   <script src="/inc/smoke-physics.js?v=7" defer></script>
   <script src="/inc/atmosphere.js?v=fluid4" defer></script>
   <script src="/inc/searchlights.js?v=mouth1" defer></script>

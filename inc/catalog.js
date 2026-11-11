@@ -1,0 +1,110 @@
+window.DemeritCatalog = [
+  {
+    "id": "demerit",
+    "title": "Demerit",
+    "cover": "/inc/logo.png",
+    "tracks": [
+      {
+        "id": "walking-out-of-fog",
+        "title": "Walking Out of Fog",
+        "src": "/audio/walking-out-of-fog.mp3",
+        "duration": 258.463,
+        "cues": "/audio/walking-out-of-fog.json?v=3"
+      },
+      {
+        "id": "barefaced-lies",
+        "title": "Barefaced Lies & Bullshit Peace",
+        "src": "/audio/barefaced-lies.mp3",
+        "duration": 235.787,
+        "cues": "/audio/barefaced-lies.json?v=3"
+      },
+      {
+        "id": "childhood-nightmare",
+        "title": "Childhood Nightmare",
+        "src": "/audio/childhood-nightmare.mp3",
+        "duration": 239.227,
+        "cues": "/audio/childhood-nightmare.json?v=3"
+      },
+      {
+        "id": "bye-bye-my-country",
+        "title": "Bye Bye My Country",
+        "src": "/audio/bye-bye-my-country.mp3",
+        "duration": 193.654,
+        "cues": "/audio/bye-bye-my-country.json?v=3"
+      }
+    ]
+  },
+  {
+    "id": "live-at-d22",
+    "title": "Live @ D22",
+    "cover": "/inc/live-at-d22.jpg",
+    "tracks": [
+      {
+        "id": "live-d22-intro",
+        "title": "Intro",
+        "src": "/audio/live-at-d22/01-intro.m4a",
+        "duration": 104.977
+      },
+      {
+        "id": "live-d22-fuck-the-schemers",
+        "title": "Fuck The Schemers",
+        "src": "/audio/live-at-d22/02-fuck-the-schemers.mp3",
+        "duration": 207.047
+      },
+      {
+        "id": "live-d22-keep-yourself",
+        "title": "Keep Yourself",
+        "src": "/audio/live-at-d22/03-keep-yourself.m4a",
+        "duration": 108.762
+      },
+      {
+        "id": "live-d22-fight-your-apathy",
+        "title": "Fight Your Apathy",
+        "src": "/audio/live-at-d22/04-fight-your-apathy.m4a",
+        "duration": 157.896
+      },
+      {
+        "id": "live-d22-blitzkreig-bop",
+        "title": "Blitzkreig Bop",
+        "src": "/audio/live-at-d22/05-blitzkreig-bop.m4a",
+        "duration": 207.238
+      },
+      {
+        "id": "live-d22-voice-of-the-people",
+        "title": "Voice Of The People",
+        "src": "/audio/live-at-d22/06-voice-of-the-people.m4a",
+        "duration": 231.039
+      },
+      {
+        "id": "live-d22-never-gonna-change",
+        "title": "Never Gonna Change",
+        "src": "/audio/live-at-d22/07-never-gonna-change.m4a",
+        "duration": 187.78
+      },
+      {
+        "id": "live-d22-bye-bye-my-country",
+        "title": "Bye Bye My Country",
+        "src": "/audio/live-at-d22/08-bye-bye-my-country.m4a",
+        "duration": 177.935
+      },
+      {
+        "id": "live-d22-unity-is-a-not-slogan",
+        "title": "Unity Is A Not Slogan",
+        "src": "/audio/live-at-d22/09-unity-is-a-not-slogan.m4a",
+        "duration": 173.5
+      },
+      {
+        "id": "live-d22-39005",
+        "title": "39005",
+        "src": "/audio/live-at-d22/10-39005.m4a",
+        "duration": 192.168
+      },
+      {
+        "id": "live-d22-the-world-has-become-a-battlefield",
+        "title": "The World Has Become A Battlefield",
+        "src": "/audio/live-at-d22/11-the-world-has-become-a-battlefield.m4a",
+        "duration": 176.309
+      }
+    ]
+  }
+];

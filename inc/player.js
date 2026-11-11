@@ -7,16 +7,48 @@
   const queue = document.getElementById('queue');
   const queueToggle = document.getElementById('queue-toggle');
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
-  const titles = ['Walking Out of Fog', 'Barefaced Lies & Bullshit Peace', 'Childhood Nightmare', 'Bye Bye My Country'];
-  const slugs = ['walking-out-of-fog', 'barefaced-lies', 'childhood-nightmare', 'bye-bye-my-country'];
-  const durations = [258.463, 235.787, 239.227, 193.654];
-  const buttons = [...document.querySelectorAll('[data-track]')];
+  const albums = window.DemeritCatalog;
+  const albumSelect = document.getElementById('album-select');
+  const playlist = queue.querySelector('.playlist');
   const cueCache = new Map();
+  let album = albums[0];
+  let queueAlbum = album;
   let index = 0;
   let cues = null;
   let buffering = false;
 
   const time = value => `${Math.floor((value || 0) / 60)}:${String(Math.floor((value || 0) % 60)).padStart(2, '0')}`;
+  const track = () => album.tracks[index];
+  const trackStatus = () => album.id === 'demerit' ? 'Demerit' : `Demerit · ${album.title}`;
+
+  function renderQueue() {
+    albumSelect.value = queueAlbum.id;
+    queue.querySelector('.player-kicker').textContent = `${queueAlbum.title.toUpperCase()} · ${queueAlbum.tracks.length} TRACKS`;
+    playlist.setAttribute('aria-label', `${queueAlbum.title} tracks`);
+    playlist.replaceChildren(...queueAlbum.tracks.map((item, position) => {
+      const li = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.track = String(position);
+      if (item === track()) button.setAttribute('aria-current', 'true');
+      for (const [className, text] of [
+        ['track-number', String(position + 1).padStart(2, '0')],
+        ['track-name', item.title], ['track-duration', time(item.duration)],
+      ]) {
+        const span = document.createElement('span');
+        span.className = className;
+        span.textContent = text;
+        button.append(span);
+      }
+      button.addEventListener('click', () => {
+        if (item === track()) { if (audio.paused) start(); }
+        else selectTrack(position, true, queueAlbum);
+      });
+      li.append(button);
+      return li;
+    }));
+  }
+
   function signal() {
     const playing = !audio.paused && !audio.ended;
     const advancing = playing && !buffering && !audio.seeking;
@@ -27,7 +59,7 @@
   }
 
   function progress() {
-    const duration = Number.isFinite(audio.duration) ? audio.duration : durations[index];
+    const duration = Number.isFinite(audio.duration) ? audio.duration : track().duration;
     seek.max = duration;
     seek.value = audio.currentTime;
     seek.disabled = !Number.isFinite(audio.duration);
@@ -37,16 +69,17 @@
     document.getElementById('duration').textContent = time(duration);
   }
 
-  async function loadCues(trackIndex) {
-    const slug = slugs[trackIndex];
-    if (!cueCache.has(slug)) {
-      cueCache.set(slug, fetch(`/audio/${slug}.json?v=3`).then(response => {
+  async function loadCues(selectedTrack) {
+    if (!selectedTrack.cues) return;
+    const url = selectedTrack.cues;
+    if (!cueCache.has(url)) {
+      cueCache.set(url, fetch(url).then(response => {
         if (!response.ok) throw new Error('Cue data unavailable');
         return response.json();
-      }).catch(() => { cueCache.delete(slug); return null; }));
+      }).catch(() => { cueCache.delete(url); return null; }));
     }
-    const result = await cueCache.get(slug);
-    if (index === trackIndex) { cues = result; signal(); }
+    const result = await cueCache.get(url);
+    if (track() === selectedTrack) { cues = result; signal(); }
   }
 
   async function start() {
@@ -62,29 +95,29 @@
     }
   }
 
-  function selectTrack(nextIndex, autoplay) {
-    index = (nextIndex + slugs.length) % slugs.length;
+  function selectTrack(nextIndex, autoplay, nextAlbum = album) {
+    album = nextAlbum;
+    index = (nextIndex + album.tracks.length) % album.tracks.length;
     cues = null;
     buffering = true;
-    audio.src = `/audio/${slugs[index]}.mp3`;
+    audio.src = track().src;
     audio.load();
-    document.getElementById('track-title').textContent = titles[index];
-    buttons.forEach((button, i) => {
-      if (i === index) button.setAttribute('aria-current', 'true');
-      else button.removeAttribute('aria-current');
-    });
-    status.textContent = 'Demerit';
+    document.getElementById('track-title').textContent = track().title;
+    document.querySelector('.album-thumb').src = album.cover;
+    queueAlbum = album;
+    renderQueue();
+    status.textContent = trackStatus();
     progress();
     signal();
-    loadCues(index);
+    loadCues(track());
     if (autoplay) start();
   }
 
   play.addEventListener('click', () => audio.paused ? start() : audio.pause());
-  buttons.forEach((button, i) => button.addEventListener('click', () => {
-    if (i === index) { if (audio.paused) start(); }
-    else selectTrack(i, true);
-  }));
+  albumSelect.addEventListener('change', () => {
+    queueAlbum = albums.find(item => item.id === albumSelect.value) || album;
+    renderQueue();
+  });
   document.getElementById('previous').addEventListener('click', () => {
     if (audio.currentTime > 3) { audio.currentTime = 0; progress(); }
     else selectTrack(index - 1, !audio.paused);
@@ -103,9 +136,9 @@
   reduce.addEventListener('change', signal);
   audio.addEventListener('timeupdate', progress);
   audio.addEventListener('loadedmetadata', progress);
-  audio.addEventListener('playing', () => { buffering = false; status.textContent = 'Demerit'; signal(); });
+  audio.addEventListener('playing', () => { buffering = false; status.textContent = trackStatus(); signal(); });
   audio.addEventListener('play', signal);
-  audio.addEventListener('pause', () => { status.textContent = 'Demerit'; signal(); });
+  audio.addEventListener('pause', () => { status.textContent = trackStatus(); signal(); });
   audio.addEventListener('waiting', () => { buffering = true; status.textContent = 'Buffering…'; signal(); });
   audio.addEventListener('seeking', signal);
   audio.addEventListener('seeked', () => { buffering = audio.readyState < 3; signal(); });
@@ -114,7 +147,8 @@
   audio.volume = .8;
   player.classList.add('is-enhanced');
   audio.controls = false;
-  loadCues(index);
+  renderQueue();
+  loadCues(track());
   progress();
   signal();
 })();
