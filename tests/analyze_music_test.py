@@ -69,7 +69,7 @@ class PercussionTest(unittest.TestCase):
                 # One byte is .137 degrees: no abrupt phase resets at phrases.
                 self.assertLessEqual(np.max(np.abs(np.diff(values.astype(int)))),1)
             elif name in ['left','right']:
-                self.assertGreaterEqual(values.min(),round(.34*255))
+                self.assertGreaterEqual(values.min(),round(.25*255))
 
     def test_cadence_is_stable_when_every_third_hit_is_louder(self):
         beats=np.arange(0,12,1/3).tolist()

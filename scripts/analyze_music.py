@@ -160,7 +160,7 @@ def make_phrases(features, beats, duration, global_tempo):
             energy=float(np.mean(samples)/max(overall_energy,1e-6)) if len(samples) else 0
             rate=len(hits)/max(hi-lo,.1)
             kind='dense' if energy>.94 and rate>3.8 else 'groove'
-            phrases.append({'start':lo,'end':hi,'kind':kind,'energy':min(1,energy),'density':round(rate,2)})
+            phrases.append({'start':lo,'end':hi,'kind':kind,'energy':min(1.4,energy),'density':round(rate,2)})
         cursor=b
     if cursor<duration:phrases.append({'start':cursor,'end':duration,'kind':'quiet'})
     if not phrases:phrases=[{'start':0,'end':duration,'kind':'quiet'}]
@@ -177,9 +177,35 @@ def make_phrases(features, beats, duration, global_tempo):
             output.append({**phrase,'end':start})
             output.append({**phrase,'start':start,'kind':'fill'})
         else:output.append(phrase)
-    for i,phrase in enumerate(output):
+    previous=None
+    for phrase in output:
         phrase['start']=round(phrase['start'],4);phrase['end']=round(phrase['end'],4)
-        phrase['style']=i%4
+        if phrase['kind']=='quiet':
+            samples=features['mix_rms'][int(phrase['start']*RATE/HOP):int(phrase['end']*RATE/HOP)]
+            phrase['energy']=min(1.4,float(np.mean(samples))/max(overall_energy,1e-6)) if len(samples) else 0
+            phrase['density']=0
+        phrase['energy']=round(phrase['energy'],4)
+        # Related passages repeat a related pose. Small feature fluctuations
+        # retain the previous motif rather than cycling every four bars.
+        kind,energy,density=phrase['kind'],phrase['energy'],phrase['density']
+        style=0 if kind=='quiet' or energy<.68 or density<1.5 else 2 if kind=='dense' else 3 if kind=='fill' or density>=3.8 else 1
+        if previous and kind==previous['kind'] and abs(energy-previous['energy'])<.12 and abs(density-previous['density'])<.65:
+            style=previous['style']
+        phrase['style']=style
+        # A section entrance needs a real strong drum attack. Continuous
+        # passages also require a marked energy rise AND a nearby crash.
+        if previous and kind not in ['quiet','fill']:
+            attacks=[e for e in features['events'] if e['type'] in ['kick','snare']
+                     and phrase['start']<=e['time']<min(phrase['end'],phrase['start']+.6)
+                     and e['strength']>=(.32 if e['type']=='kick' else .45)]
+            after_break=previous['kind']=='quiet' and previous['end']-previous['start']>=1.5
+            rising=energy-previous['energy']>=.16 and density>=previous['density']*.9
+            for event in attacks:
+                crash=any(e['type']=='cymbal' and e.get('crash') and abs(e['time']-event['time'])<.12 for e in features['events'])
+                if after_break or (rising and crash):
+                    phrase['entrance']=round(event['time'],4)
+                    break
+        previous=phrase
     return output
 
 
@@ -222,24 +248,21 @@ def arrange_accents(events, phrases, beats):
         if not nearby:continue
         e=max(nearby,key=lambda e:e['weight']*(1-.3*abs(e['time']-t)/radius))
         if all(abs(e['time']-a['time'])>=max(.30,beat_period*.78) for a in chosen):chosen.append(e)
-    # A loud entrance is allowed to anchor a new active passage even if its
-    # first real attack falls between two tracker slots.
+    # A genuine section entrance can fall between two tracker slots. Keep its
+    # actual attack time, replacing a nearby regular accent rather than adding
+    # an extra flash on the estimated phrase boundary.
     for p in phrases:
-        if p['kind']=='quiet':continue
-        previous=phrase_at(phrases,max(0,p['start']-.05))
-        if previous['kind']!='quiet' or previous['end']-previous['start']<=2:continue
-        entry=[e for e in merged if p['start']<=e['time']<p['start']+.5]
+        if 'entrance' not in p:continue
+        entry=[e for e in merged if abs(e['time']-p['entrance'])<.065]
         if entry:
-            e=entry[0]
+            e=min(entry,key=lambda e:abs(e['time']-p['entrance']))
             chosen=[a for a in chosen if abs(e['time']-a['time'])>=max(.30,beat_period*.78)]
             chosen.append(e)
     accents=[]
     for e in sorted(chosen,key=lambda e:e['time']):
         p=e['phrase'];kind=e['type']
         if p['kind']=='fill':kind='fill'
-        if p['kind']!='quiet' and e['time']-p['start']<.6:
-            previous=phrase_at(phrases,max(0,p['start']-.05))
-            if previous['kind']=='quiet' and previous['end']-previous['start']>2:kind='impact'
+        if 'entrance' in p and abs(e['time']-p['entrance'])<.065:kind='impact'
         side=-1
         if kind=='snare' and p['style']%4 in [1,2]:side=p['style']%4-1
         if kind=='fill':side=len(accents)%2
@@ -263,14 +286,15 @@ def encode(values):
 def bake_score(features,phrases,accents,events,beats,tempo,duration):
     times=np.arange(int(np.ceil(duration*FPS))+1)/FPS;n=len(times)
     mix=normalize(np.interp(times,np.arange(len(features['mix_rms']))*HOP/RATE,features['mix_rms'])**.65)
-    base=np.full(n,.38);period=np.full(n,22.);amplitude=np.full(n,15.);bias=np.zeros(n)
+    base=np.full(n,.30);period=np.full(n,28.);amplitude=np.full(n,10.);bias=np.zeros(n)
     separation=np.zeros(n); stereo=np.zeros(n)
     for p in phrases:
-        keep=(times>=p['start'])&(times<p['end']);kind=p['kind'];style=p['style']
-        if kind=='quiet':base[keep]=.49;period[keep]=27;amplitude[keep]=12
-        elif kind=='groove':base[keep]=.35;period[keep]=np.clip(48*60/tempo,20,28);amplitude[keep]=14.5+style*.6
-        elif kind=='dense':base[keep]=.37;period[keep]=np.clip(48*60/tempo,19,24);amplitude[keep]=16.5
-        else:base[keep]=.36;period[keep]=20;amplitude[keep]=15.5
+        keep=(times>=p['start'])&(times<=p['end']);kind=p['kind'];style=p['style']
+        energy=np.clip(p.get('energy',.8),0,1.3)
+        if kind=='quiet':base[keep]=.265+.04*min(1,energy);period[keep]=31;amplitude[keep]=9.5
+        elif kind=='groove':base[keep]=.315+.055*energy;period[keep]=np.clip(48*60/tempo,20,28);amplitude[keep]=13+2*min(1,energy)
+        elif kind=='dense':base[keep]=.355+.055*energy;period[keep]=np.clip(48*60/tempo,19,24);amplitude[keep]=16.5
+        else:base[keep]=.33+.055*energy;period[keep]=20;amplitude[keep]=15.5
         bias[keep]=[0,.8,-.8,0][style]
         separation[keep]=[.12,1.35,2.8,-1.1][style] if kind!='quiet' else .28
         stereo[keep]=[0,1,-1,.6][style] if kind!='quiet' else 0
@@ -281,13 +305,16 @@ def bake_score(features,phrases,accents,events,beats,tempo,duration):
     separation=ndimage.gaussian_filter1d(separation,2.8*FPS)
     stereo=ndimage.gaussian_filter1d(stereo,1.2*FPS)
     phase=1+np.cumsum(speed)/FPS
-    breath=.025*np.sin(times*2*np.pi/8)+.015*mix
+    # The continuous bed follows broad musical dynamics; attack transients
+    # still belong exclusively to the separated drum events below.
+    breath=.012*np.sin(times*2*np.pi/8)+.035*(smooth(mix,.65,FPS)-.6)
     left=base+breath+.035*stereo;right=base+breath-.035*stereo
     pulse_l=np.zeros(n);pulse_r=np.zeros(n)
+    entry_wash=np.zeros(n)
     for a in accents:
         kind=a['type'];strength=a['strength'];side=a['side']
         attack,hold,release={'kick':(.012,.025,.095),'snare':(.010,.02,.065),
-                            'fill':(.010,.02,.075),'impact':(.015,.06,.19)}[kind]
+                            'fill':(.010,.02,.075),'impact':(.015,.09,.24)}[kind]
         phrase=phrase_at(phrases,a['time'])
         variation=[.92,1.,1.08,.97][phrase['style']]
         hold*=variation;release*=variation
@@ -300,6 +327,13 @@ def bake_score(features,phrases,accents,events,beats,tempo,duration):
         onset=max(0,a['time']-attack)
         add_envelope(pulse_l,onset,peak*l,attack,hold,release)
         add_envelope(pulse_r,onset,peak*r,attack,hold,release)
+        if kind=='impact':
+            # A restrained intake before an actual entrance, then a broader
+            # shared glow. Neither creates a new beat or resets the head phase.
+            until=a['time']-times
+            intake=np.where((until>attack)&(until<.42),np.sin(np.pi*(until-attack)/(.42-attack))**2,0)
+            left-=.045*intake;right-=.045*intake
+            add_envelope(entry_wash,onset,.075,attack,.10,.55)
     # The main cadence remains readable; softer real snare attacks between it
     # add alternating backbeats. No synthetic beat-grid flashes are inserted.
     last_secondary=-1
@@ -311,12 +345,20 @@ def bake_score(features,phrases,accents,events,beats,tempo,duration):
         channel=pulse_l if side==0 else pulse_r
         add_envelope(channel,max(0,t-.01),.14+.1*event['strength'],.01,.015,.06)
         last_secondary=t
-    left=np.clip(left+pulse_l,.34,.98);right=np.clip(right+pulse_r,.34,.98)
+    # The final decay follows the recorded fade/silence, not a fixed timer, so
+    # a track that cuts hard on its last hit keeps that hit intact.
+    end_window=times>max(0,duration-4)
+    tail=np.ones(n)
+    if np.median(mix[end_window][-min(int(.5*FPS),sum(end_window)):])<.22:
+        blend=np.clip((times-max(0,duration-4))/.8,0,1)
+        blend=blend*blend*(3-2*blend)
+        tail=1-.3*blend*(1-np.clip(smooth(mix,.25,FPS)/.35,0,1))
+    left=np.clip(left*tail+pulse_l,.25,.98);right=np.clip(right*tail+pulse_r,.25,.98)
     wash=np.zeros(n)
     for event in events:
         if event['type']=='cymbal' and event.get('crash'):
             add_envelope(wash,event['time'],.07+.07*event['strength'],.08,.08,.45)
-    haze=np.clip(.40+.12*smooth(mix,.25,FPS)+wash+.12*smooth(np.maximum(pulse_l,pulse_r),.16,FPS),.34,.86)
+    haze=np.clip(.36+.14*smooth(mix,.65,FPS)+wash+entry_wash+.12*smooth(np.maximum(pulse_l,pulse_r),.16,FPS),.34,.86)
     center=132.5
     angle_l=center+amplitude*np.sin(phase)+bias*.3
     angle_r=center+amplitude*np.sin(phase+separation)+bias*.3
@@ -345,7 +387,7 @@ def analyze(stem,mix,duration=None):
           'analysis':{'separator':'htdemucs','method':'drum-stem/band-attacks/dynamic-beat-tracking/phrase-score','phraseLabels':'estimated',
                       'instrumentLabels':'estimated','tempo':round(tempo,2),'events':counts,
                       'crashes':sum(e.get('crash',False) for e in features['events']),
-                      'stemOffsetSamples':0,'stemSampleRate':RATE,'arrangement':4}}
+                      'stemOffsetSamples':0,'stemSampleRate':RATE,'arrangement':5}}
     return cues,features
 
 
