@@ -16,6 +16,9 @@
   let index = 0;
   let cues = null;
   let buffering = false;
+  let scrubbing = false;
+  let previewTime = null;
+  let pendingSeek = null;
 
   const time = value => `${Math.floor((value || 0) / 60)}:${String(Math.floor((value || 0) % 60)).padStart(2, '0')}`;
   const track = () => album.tracks[index];
@@ -60,14 +63,40 @@
   }
 
   function progress() {
-    const duration = Number.isFinite(audio.duration) ? audio.duration : track().duration;
+    const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : track().duration;
+    const position = Math.max(0, Math.min(duration, previewTime ?? pendingSeek ?? audio.currentTime));
     seek.max = duration;
-    seek.value = audio.currentTime;
-    seek.disabled = !Number.isFinite(audio.duration);
-    seek.style.setProperty('--progress', `${100 * audio.currentTime / duration}%`);
-    seek.setAttribute('aria-valuetext', `${time(audio.currentTime)} of ${time(duration)}`);
-    document.getElementById('elapsed').textContent = time(audio.currentTime);
+    seek.value = position;
+    seek.disabled = !Number.isFinite(audio.duration) || audio.duration <= 0;
+    seek.style.setProperty('--progress', `${100 * position / duration}%`);
+    seek.setAttribute('aria-valuetext', `${time(position)} of ${time(duration)}`);
+    document.getElementById('elapsed').textContent = time(position);
     document.getElementById('duration').textContent = time(duration);
+  }
+
+  function seekTo(value) {
+    if (!Number.isFinite(audio.duration) || audio.duration <= 0 || !Number.isFinite(value)) return;
+    const target = Math.max(0, Math.min(audio.duration, value));
+    previewTime = null;
+    if (!audio.seeking && Math.abs(audio.currentTime - target) < .001) {
+      pendingSeek = null;
+      progress();
+      return;
+    }
+    if (pendingSeek !== target) {
+      // Keep the requested position visible while the browser fetches/decode
+      // catches up. Stale timeupdate events must not pull the thumb backwards.
+      pendingSeek = target;
+      try { audio.currentTime = target; }
+      catch { pendingSeek = null; }
+    }
+    progress();
+  }
+
+  function finishScrub() {
+    if (!scrubbing) return;
+    scrubbing = false;
+    if (previewTime !== null) seekTo(previewTime);
   }
 
   async function loadCues(selectedTrack) {
@@ -101,6 +130,8 @@
     index = (nextIndex + album.tracks.length) % album.tracks.length;
     cues = null;
     buffering = true;
+    scrubbing = false;
+    previewTime = pendingSeek = null;
     audio.src = track().src;
     audio.load();
     document.getElementById('track-title').textContent = track().title;
@@ -120,11 +151,30 @@
     renderQueue();
   });
   document.getElementById('previous').addEventListener('click', () => {
-    if (audio.currentTime > 3) { audio.currentTime = 0; progress(); }
+    if (audio.currentTime > 3) { scrubbing = false; seekTo(0); }
     else selectTrack(index - 1, !audio.paused);
   });
   document.getElementById('next').addEventListener('click', () => selectTrack(index + 1, !audio.paused));
-  seek.addEventListener('input', () => { audio.currentTime = Number(seek.value); progress(); });
+  seek.addEventListener('pointerdown', () => {
+    if (seek.disabled) return;
+    scrubbing = true;
+    previewTime = Number(seek.value);
+  });
+  seek.addEventListener('input', () => {
+    previewTime = Number(seek.value);
+    if (scrubbing) progress();
+    else seekTo(previewTime);
+  });
+  // Native range controls also commit through change (keyboard, touch and
+  // accessibility actions). Pointer drags preview first and seek once released.
+  seek.addEventListener('change', () => { scrubbing = false; seekTo(Number(seek.value)); });
+  document.addEventListener('pointerup', finishScrub);
+  document.addEventListener('pointercancel', () => {
+    scrubbing = false;
+    previewTime = null;
+    progress();
+  });
+  seek.addEventListener('blur', finishScrub);
   function setQueue(open) {
     queue.hidden = !open;
     queueToggle.setAttribute('aria-expanded', String(open));
@@ -142,9 +192,20 @@
   audio.addEventListener('pause', () => { status.textContent = trackStatus(); signal(); });
   audio.addEventListener('waiting', () => { buffering = true; status.textContent = 'Buffering…'; signal(); });
   audio.addEventListener('seeking', signal);
-  audio.addEventListener('seeked', () => { buffering = audio.readyState < 3; signal(); });
+  audio.addEventListener('seeked', () => {
+    pendingSeek = null;
+    buffering = audio.readyState < 3;
+    progress();
+    signal();
+  });
   audio.addEventListener('ended', () => selectTrack(index + 1, true));
-  audio.addEventListener('error', () => { status.textContent = 'Track unavailable. Try another song.'; signal(); });
+  audio.addEventListener('error', () => {
+    scrubbing = false;
+    previewTime = pendingSeek = null;
+    progress();
+    status.textContent = 'Track unavailable. Try another song.';
+    signal();
+  });
   audio.volume = .8;
   player.classList.add('is-enhanced');
   audio.controls = false;

@@ -1,8 +1,9 @@
 """Build a deterministic 50 Hz light score from a separated drum stem.
 
-Run separate_drums.py first. NumPy/SciPy/librosa perform band onset and beat
-tracking offline. Only packed light channels go to the browser, never models
-or stems. The percussion instrument labels are band/attack estimates.
+Run separate_drums.py and track_meter.py first. Beat This! models beat/downbeat
+evidence; a meter decoder fixes cadence before real drum attacks refine timing.
+NumPy/SciPy perform band onset analysis offline. Only packed light channels go
+to the browser, never models or stems. Instrument labels are band estimates.
 """
 from __future__ import annotations
 import argparse
@@ -17,6 +18,7 @@ import librosa
 import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from audio_tracks import catalog_tracks
+from meter_score import decode_meter, meter_pulses
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RATE, HOP, WINDOW, FPS = 22050, 220, 2048, 50
@@ -144,7 +146,7 @@ def active_spans(activity, events, duration):
     return spans
 
 
-def make_phrases(features, beats, duration, global_tempo):
+def make_phrases(features, beats, duration, global_tempo, downbeats=None):
     spans=active_spans(features['activity'],features['events'],duration)
     phrases=[]; cursor=0
     overall_energy=float(np.percentile(features['mix_rms'],80))
@@ -152,7 +154,8 @@ def make_phrases(features, beats, duration, global_tempo):
         if a>cursor:phrases.append({'start':cursor,'end':a,'kind':'quiet'})
         local_beats=[t for t in beats if a<=t<b]
         # Four-bar groups. Boundaries are musical beat positions, not seconds.
-        boundaries=[a]+local_beats[16::16]+[b]
+        local_bars=[t for t in downbeats or [] if a<=t<b]
+        boundaries=[a]+(local_bars[4::4] if local_bars else local_beats[16::16])+[b]
         if len(boundaries)>2 and boundaries[-1]-boundaries[-2]<1.8:boundaries.pop(-2)
         for lo,hi in zip(boundaries,boundaries[1:]):
             samples=features['mix_rms'][int(lo*RATE/HOP):int(hi*RATE/HOP)]
@@ -213,7 +216,7 @@ def phrase_at(phrases,time):
     return next((p for p in phrases if p['start']<=time<p['end']),phrases[-1])
 
 
-def arrange_accents(events, phrases, beats):
+def arrange_accents(events, phrases, beats, pulse_grid=None):
     candidates=[]
     for event in events:
         if event['type']=='cymbal':continue
@@ -238,25 +241,33 @@ def arrange_accents(events, phrases, beats):
     beat_period=float(np.median(intervals)) if len(intervals) else .5
     stride=2 if beat_period<.45 else 1
     chosen=[]
-    for index,t in enumerate(beats):
+    slots=pulse_grid if pulse_grid is not None else [
+        {'time':t,'period':beat_period*stride} for index,t in enumerate(beats) if index%stride==0]
+    for slot in slots:
+        t=slot['time']
         p=phrase_at(phrases,t)
         if p['kind']=='quiet':continue
-        # Fill passages may add one genuine intervening drum accent.
-        if index%stride and p['kind']!='fill':continue
-        radius=min(.15,beat_period*.34)
-        nearby=[e for e in merged if abs(e['time']-t)<=radius]
+        radius=min(.055,beat_period*.18)
+        # Filter each real attack against the slot before picking one. Merging
+        # first allowed a louder offbeat to erase a quieter, correctly timed hit.
+        nearby=[e for e in candidates if abs(e['time']-t)<=radius]
         if not nearby:continue
-        e=max(nearby,key=lambda e:e['weight']*(1-.3*abs(e['time']-t)/radius))
-        if all(abs(e['time']-a['time'])>=max(.30,beat_period*.78) for a in chosen):chosen.append(e)
+        e=min(nearby,key=lambda e:(abs(e['time']-t)/radius)-.12*e['weight'])
+        minimum=max(.42,slot['period']*.65) if pulse_grid is not None else max(.30,beat_period*.78)
+        if not chosen or e['time']-chosen[-1]['time']>=minimum:chosen.append(e)
     # A genuine section entrance can fall between two tracker slots. Keep its
     # actual attack time, replacing a nearby regular accent rather than adding
     # an extra flash on the estimated phrase boundary.
     for p in phrases:
         if 'entrance' not in p:continue
-        entry=[e for e in merged if abs(e['time']-p['entrance'])<.065]
+        # Once meter is available, entrances also respect the planned pulse.
+        # A loud offbeat is not permitted to restart the main light cadence.
+        if pulse_grid is not None:
+            entry=[a for a in chosen if abs(a['time']-p['entrance'])<.065]
+        else:entry=[e for e in merged if abs(e['time']-p['entrance'])<.065]
         if entry:
             e=min(entry,key=lambda e:abs(e['time']-p['entrance']))
-            chosen=[a for a in chosen if abs(e['time']-a['time'])>=max(.30,beat_period*.78)]
+            chosen=[a for a in chosen if abs(e['time']-a['time'])>=max(.42 if pulse_grid is not None else .30,beat_period*.78)]
             chosen.append(e)
     accents=[]
     for e in sorted(chosen,key=lambda e:e['time']):
@@ -264,8 +275,9 @@ def arrange_accents(events, phrases, beats):
         if p['kind']=='fill':kind='fill'
         if 'entrance' in p and abs(e['time']-p['entrance'])<.065:kind='impact'
         side=-1
-        if kind=='snare' and p['style']%4 in [1,2]:side=p['style']%4-1
-        if kind=='fill':side=len(accents)%2
+        if pulse_grid is None:
+            if kind=='snare' and p['style']%4 in [1,2]:side=p['style']%4-1
+            if kind=='fill':side=len(accents)%2
         accents.append({'time':round(e['time'],4),'type':kind,'strength':round(e['strength'],4),'side':side})
     return accents
 
@@ -334,17 +346,14 @@ def bake_score(features,phrases,accents,events,beats,tempo,duration):
             intake=np.where((until>attack)&(until<.42),np.sin(np.pi*(until-attack)/(.42-attack))**2,0)
             left-=.045*intake;right-=.045*intake
             add_envelope(entry_wash,onset,.075,attack,.10,.55)
-    # The main cadence remains readable; softer real snare attacks between it
-    # add alternating backbeats. No synthetic beat-grid flashes are inserted.
-    last_secondary=-1
+    # Busy snare rolls belong to the diffuse room light. Adding independent
+    # direct-beam flashes here made fast songs switch between the main cadence
+    # and intervening backbeats, even when the main score was correctly locked.
+    percussion_wash=np.zeros(n)
     for event in events:
         t=event['time']; p=phrase_at(phrases,t)
         if event['type']!='snare' or event['strength']<.3 or p['kind']=='quiet':continue
-        if any(abs(t-a['time'])<.18 for a in accents) or t-last_secondary<.22:continue
-        side=int(t*tempo/60)%2
-        channel=pulse_l if side==0 else pulse_r
-        add_envelope(channel,max(0,t-.01),.14+.1*event['strength'],.01,.015,.06)
-        last_secondary=t
+        add_envelope(percussion_wash,t,.035*event['strength'],.15,.05,.22)
     # The final decay follows the recorded fade/silence, not a fixed timer, so
     # a track that cuts hard on its last hit keeps that hit intact.
     end_window=times>max(0,duration-4)
@@ -358,7 +367,7 @@ def bake_score(features,phrases,accents,events,beats,tempo,duration):
     for event in events:
         if event['type']=='cymbal' and event.get('crash'):
             add_envelope(wash,event['time'],.07+.07*event['strength'],.08,.08,.45)
-    haze=np.clip(.36+.14*smooth(mix,.65,FPS)+wash+entry_wash+.12*smooth(np.maximum(pulse_l,pulse_r),.16,FPS),.34,.86)
+    haze=np.clip(.36+.14*smooth(mix,.65,FPS)+wash+entry_wash+smooth(percussion_wash,.2,FPS)+.12*smooth(np.maximum(pulse_l,pulse_r),.16,FPS),.34,.86)
     center=132.5
     angle_l=center+amplitude*np.sin(phase)+bias*.3
     angle_r=center+amplitude*np.sin(phase+separation)+bias*.3
@@ -372,22 +381,39 @@ def bake_score(features,phrases,accents,events,beats,tempo,duration):
     return channels
 
 
-def analyze(stem,mix,duration=None):
+def analyze(stem,mix,duration=None,meter=None):
     duration=duration or len(mix)/RATE
     # Separator output must share the decoded source's sample origin and length.
     stem=np.pad(stem,(0,max(0,len(mix)-len(stem))))[:len(mix)]
     features=extract_drums(stem,mix)
-    beats,tempo_points,tempo=track_beats(features['onset'])
-    phrases=make_phrases(features,beats,duration,tempo)
-    accents=arrange_accents(features['events'],phrases,beats)
+    decoded=None;pulse_grid=None
+    if meter is not None:
+        if abs(meter['duration']-duration)>.06:raise ValueError('Meter duration does not match audio')
+        beats=meter['beats']
+        decoded=decode_meter(beats,meter['downbeatProbability'],meter['fps'])
+        pulse_grid=meter_pulses(beats,decoded['phases'])
+        intervals=np.diff(beats)
+        tempo=60/float(np.median(intervals)) if len(intervals) else 120.
+        tempo_points=[{'time':round(t,3),'bpm':round(60/float(np.median(intervals[max(0,i-6):i+7])),2)}
+                      for i,t in enumerate(beats[:-1]) if i%4==0]
+    else:beats,tempo_points,tempo=track_beats(features['onset'])
+    phrases=make_phrases(features,beats,duration,tempo,decoded['barstarts'] if decoded else None)
+    accents=arrange_accents(features['events'],phrases,beats,pulse_grid)
     channels=bake_score(features,phrases,accents,features['events'],beats,tempo,duration)
     counts={kind:sum(e['type']==kind for e in features['events']) for kind in ['kick','snare','cymbal']}
     cues={'version':3,'duration':round(duration,4),'fps':FPS,'encoding':'u8-base64','channels':channels,
           'beats':beats,'tempo':tempo_points,'phrases':phrases,'accents':accents,
-          'analysis':{'separator':'htdemucs','method':'drum-stem/band-attacks/dynamic-beat-tracking/phrase-score','phraseLabels':'estimated',
+          'analysis':{'separator':'htdemucs','method':'drum-stem/band-attacks/meter-cadence/phrase-score' if meter else 'drum-stem/band-attacks/dynamic-beat-tracking/phrase-score','phraseLabels':'estimated',
                       'instrumentLabels':'estimated','tempo':round(tempo,2),'events':counts,
                       'crashes':sum(e.get('crash',False) for e in features['events']),
-                      'stemOffsetSamples':0,'stemSampleRate':RATE,'arrangement':5}}
+                      'stemOffsetSamples':0,'stemSampleRate':RATE,'arrangement':6}}
+    if decoded is not None:
+        cues['downbeats']=decoded['barstarts']
+        cues['cadence']=pulse_grid
+        cues['analysis']['meter']={'model':meter['model'],'method':'four-state-viterbi/nearest-real-drum',
+            'beatsPerBar':4,'phaseChanges':len(decoded['phaseChanges']),
+            'maximumSnapSeconds':.055,'minimumPulseSeconds':.42,
+            'checkpointSha256':meter.get('checkpointSha256')}
     return cues,features
 
 
@@ -398,12 +424,16 @@ def main():
     parser.add_argument('--track',choices=list(sources),action='append')
     parser.add_argument('--all',action='store_true')
     parser.add_argument('--diagnostics',type=pathlib.Path)
+    parser.add_argument('--meter',type=pathlib.Path,help='Cached Beat This! results from track_meter.py')
     args=parser.parse_args()
     for slug in (list(sources) if args.all else args.track or TRACKS):
         mp3=sources[slug];stem_path=args.stems/f'{slug}.wav'
         mix,stem=decode(mp3),decode(stem_path)
-        cues,features=analyze(stem,mix)
-        cues['analysis']['sourceSha256']=hashlib.sha256(mp3.read_bytes()).hexdigest()
+        source_sha=hashlib.sha256(mp3.read_bytes()).hexdigest()
+        meter=json.loads((args.meter/f'{slug}.json').read_text()) if args.meter else None
+        if meter is not None and meter['sourceSha256']!=source_sha:raise ValueError('Meter source hash mismatch: '+slug)
+        cues,features=analyze(stem,mix,meter=meter)
+        cues['analysis']['sourceSha256']=source_sha
         mp3.with_suffix('.json').write_text(json.dumps(cues,separators=(',',':'))+'\n')
         if args.diagnostics:
             args.diagnostics.mkdir(parents=True,exist_ok=True)

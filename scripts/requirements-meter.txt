@@ -1,0 +1,5 @@
+# Optional offline beat/downbeat model; install alongside requirements-audio.txt.
+# Model weights and inference stay off the website.
+beat-this==1.1.0
+torchaudio==2.11.1
+rotary-embedding-torch==0.9.2

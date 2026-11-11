@@ -128,7 +128,7 @@ body { padding-bottom: 92px; }
 .player input[type="range"] { appearance: none; height: 3px; border-radius: 2px; background: #393129; cursor: pointer; accent-color: #d5a66a; min-width: 0; margin: 4px 0; }
 .player input[type="range"]::-webkit-slider-thumb { appearance: none; width: 7px; height: 7px; border-radius: 50%; background: #e2bd88; }
 .player input[type="range"]::-moz-range-thumb { width: 7px; height: 7px; border: 0; border-radius: 50%; background: #e2bd88; }
-#seek { flex: 1; background: linear-gradient(to right, #c99757 var(--progress, 0%), #393129 var(--progress, 0%)); }
+#seek { flex: 1; box-sizing: content-box; border: 0; padding: 10px 0; margin: -6px 0; touch-action: pan-y; background: linear-gradient(to right, #c99757 var(--progress, 0%), #393129 var(--progress, 0%)); background-clip: content-box; }
 .dock-actions { display: flex; align-items: center; justify-content: flex-end; gap: 20px; }
 .dock-actions button { display: grid; place-items: center; padding: 8px; }
 #queue-toggle[aria-expanded="true"] { color: #e7b87c; }

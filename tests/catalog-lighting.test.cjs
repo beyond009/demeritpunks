@@ -15,6 +15,17 @@ for (const album of context.window.DemeritCatalog) for (const track of album.tra
     const audio = fs.readFileSync(path.join(root, track.src));
     const cues = JSON.parse(fs.readFileSync(path.join(root, track.cues.split('?')[0]), 'utf8'));
     assert.equal(cues.analysis.sourceSha256, createHash('sha256').update(audio).digest('hex'));
+    assert.equal(cues.analysis.arrangement, 6);
+    assert.equal(cues.analysis.meter.model, 'Beat This! final0');
+    assert.match(cues.analysis.meter.checkpointSha256, /^[a-f0-9]{64}$/);
+    for (let index = 0; index < cues.accents.length; index++) {
+      const accent = cues.accents[index];
+      assert.equal(accent.side, -1, 'the main cadence reaches both heads together');
+      assert.ok(cues.cadence.some(slot => Math.abs(slot.time - accent.time) <= .055),
+        'a real drum attack may only refine the planned meter slot');
+      if (index) assert.ok(accent.time - cues.accents[index - 1].time >= .42,
+        'fills and phase corrections cannot insert a burst of extra flashes');
+    }
     assert.ok(Math.abs(cues.duration - track.duration) < .06);
     const count = Math.ceil(cues.duration * cues.fps) + 1;
     for (const values of Object.values(cues.channels)) assert.equal(Buffer.from(values, 'base64').length, count);
