@@ -19,7 +19,7 @@
 
   const time = value => `${Math.floor((value || 0) / 60)}:${String(Math.floor((value || 0) % 60)).padStart(2, '0')}`;
   const track = () => album.tracks[index];
-  const trackStatus = () => album.id === 'demerit' ? 'Demerit' : `Demerit · ${album.title}`;
+  const trackStatus = () => `Demerit · ${album.title}`;
 
   function renderQueue() {
     albumSelect.value = queueAlbum.id;

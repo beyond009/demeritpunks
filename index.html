@@ -135,7 +135,7 @@
   <section class="player" aria-label="Demerit music player">
     <audio id="music" class="native-player" controls preload="metadata" src="/audio/walking-out-of-fog.mp3"></audio>
     <div class="player-dock">
-      <div class="dock-track"><img class="album-thumb" src="/inc/logo.png" width="38" height="38" alt=""><div class="track-info"><h2 id="track-title">Walking Out of Fog</h2><p id="player-status" role="status">Demerit</p></div></div>
+      <div class="dock-track"><img class="album-thumb" src="/inc/split-10.jpg" width="38" height="38" alt=""><div class="track-info"><h2 id="track-title">Walking Out of Fog</h2><p id="player-status" role="status">Demerit · Split 10&quot;</p></div></div>
       <div class="dock-center">
         <div class="transport"><button id="previous" type="button" aria-label="Previous track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2v14H6zm13 0L9 12l10 7z"/></svg></button><button id="play" class="play-button" type="button" aria-label="Play"><svg class="play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 11 7-11 7z"/></svg><svg class="pause-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm7 0h4v14h-4z"/></svg></button><button id="next" type="button" aria-label="Next track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5h2v14h-2zM5 5l10 7-10 7z"/></svg></button></div>
         <div class="timeline"><span id="elapsed">0:00</span><input id="seek" type="range" min="0" max="258.463" step=".1" value="0" aria-label="Seek" aria-valuetext="0:00" disabled><span id="duration">4:18</span></div>
@@ -143,13 +143,12 @@
       <div class="dock-actions"><button id="queue-toggle" type="button" aria-label="Open playlist" aria-expanded="false" aria-controls="queue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v2H4zm0 6h16v2H4zm0 6h10v2H4zm13-1 5 3-5 3z"/></svg></button></div>
     </div>
     <div id="queue" class="queue" hidden>
-      <div class="player-heading"><span class="player-kicker">DEMERIT · 4 TRACKS</span><button id="queue-close" type="button" aria-label="Close playlist">×</button></div>
-      <label class="album-picker" for="album-select"><span class="sr-only">Choose album</span><select id="album-select" aria-label="Choose album"><option value="demerit">Demerit</option><option value="live-at-d22">Live @ D22</option></select></label>
+      <div class="player-heading"><span class="player-kicker">SPLIT 10&quot; · 3 TRACKS</span><button id="queue-close" type="button" aria-label="Close playlist">×</button></div>
+      <label class="album-picker" for="album-select"><span class="sr-only">Choose album</span><select id="album-select" aria-label="Choose album"><option value="split-10">Split 10&quot;</option><option value="bastards-of-the-nation">Bastards of the Nation</option><option value="live-at-d22">Live @ D22</option></select></label>
       <ol class="playlist" aria-label="Tracks">
         <li><button type="button" data-track="0" aria-current="true"><span class="track-number">01</span><span>Walking Out of Fog</span><span class="track-duration">4:18</span></button></li>
         <li><button type="button" data-track="1"><span class="track-number">02</span><span>Barefaced Lies &amp; Bullshit Peace</span><span class="track-duration">3:55</span></button></li>
         <li><button type="button" data-track="2"><span class="track-number">03</span><span>Childhood Nightmare</span><span class="track-duration">3:59</span></button></li>
-        <li><button type="button" data-track="3"><span class="track-number">04</span><span>Bye Bye My Country</span><span class="track-duration">3:13</span></button></li>
       </ol>
 
     </div>
@@ -157,8 +156,8 @@
   </section>
   <script src="/inc/audio-analysis.js" defer></script>
   <script src="/inc/light-score.js?v=3" defer></script>
-  <script src="/inc/catalog.js?v=d22-1" defer></script>
-  <script src="/inc/player.js?v=d22-1" defer></script>
+  <script src="/inc/catalog.js?v=albums-2" defer></script>
+  <script src="/inc/player.js?v=albums-2" defer></script>
   <script src="/inc/smoke-physics.js?v=7" defer></script>
   <script src="/inc/atmosphere.js?v=fluid4" defer></script>
   <script src="/inc/searchlights.js?v=mouth1" defer></script>

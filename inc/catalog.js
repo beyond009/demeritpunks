@@ -1,8 +1,8 @@
 window.DemeritCatalog = [
   {
-    "id": "demerit",
-    "title": "Demerit",
-    "cover": "/inc/logo.png",
+    "id": "split-10",
+    "title": "Split 10\"",
+    "cover": "/inc/split-10.jpg",
     "tracks": [
       {
         "id": "walking-out-of-fog",
@@ -24,7 +24,14 @@ window.DemeritCatalog = [
         "src": "/audio/childhood-nightmare.mp3",
         "duration": 239.227,
         "cues": "/audio/childhood-nightmare.json?v=3"
-      },
+      }
+    ]
+  },
+  {
+    "id": "bastards-of-the-nation",
+    "title": "Bastards of the Nation",
+    "cover": "/inc/bastards-of-the-nation.jpg",
+    "tracks": [
       {
         "id": "bye-bye-my-country",
         "title": "Bye Bye My Country",
