@@ -29,12 +29,28 @@ SHA256 and duration before they are used.
   already follows a slower beat level. Separate tempo thresholds and changes
   only at bar boundaries prevent subdivision from switching back and forth.
 - Each planned pulse must match a real separated kick/snare attack within
-  55 ms. Choose by proximity before strength. Missing attacks are skipped.
-  The score enforces at least 420 ms between main pulses, including fills and
-  meter corrections. Both heads share the main cadence while their motion and
-  continuous bed remain independent.
-- Unscheduled snare rolls only affect a faint, smoothed haze channel. They
-  cannot insert direct-beam flashes or restart the beat phase.
+  55 ms. Choose by proximity before strength. Missing attacks are skipped. The score enforces
+  at least 420 ms between main pulses, including meter corrections. Both heads
+  share the main cadence while their motion and continuous bed remain independent.
+- A separate `details` layer restores musical answers at a lower dynamic range:
+  recurring snare attacks on beats 2/4 can answer on one side, with at least
+  180 ms of clearance from a main accent. Very fast passages do not enable a
+  constant stream of these answers.
+- Fill detection checks every bar ending, counts both low and mid-band attacks,
+  and requires a short run and a density increase over actual recent playing.
+  Missing history is not treated as silence. At most three true attacks form a
+  fill gesture; the main cadence is unchanged.
+- Strong sustained cymbals with sufficient absolute band prominence receive a
+  small, velocity-bounded beam opening and diffuse haze. A brief shared bloom
+  reinforces an existing main hit only when it falls within 80 ms, aligned to
+  that main hit to avoid a double flash. Repeated sustained open-cymbal estimates
+  can add a softer beat-related texture, at most .04 above the continuous bed.
+- Full-mix energy, spectral brightness and texture are smoothed over roughly
+  two seconds. They gently vary the continuous bed, sweep range and haze only;
+  they cannot schedule pulses or change their timing, subdivision or phase.
+  These are acoustic proxies for musical development, not emotion labels.
+- Arrangement 7 preserves all 15 tracks' main accents, beat and cadence data
+  exactly from arrangement 6. A checked-in fingerprint guards this boundary.
 
 The beat/bar distinction and continuity constraint follow established
 [joint beat/downbeat tracking practice](https://madmom.readthedocs.io/en/v0.16.1/modules/features/downbeats.html).
@@ -49,6 +65,8 @@ node --test tests/*.test.cjs
 python tests/analyze_music_test.py
 python tests/phrase-dynamics.test.py
 python tests/rhythm-cadence.test.py
+python tests/drum-details.test.py
+python tests/music-context.test.py
 npm run build
 ```
 

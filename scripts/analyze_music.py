@@ -1,4 +1,4 @@
-"""Build a deterministic 50 Hz light score from a separated drum stem.
+"""Build a deterministic 50 Hz light score from drums and full-mix dynamics.
 
 Run separate_drums.py and track_meter.py first. Beat This! models beat/downbeat
 evidence; a meter decoder fixes cadence before real drum attacks refine timing.
@@ -19,6 +19,8 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from audio_tracks import catalog_tracks
 from meter_score import decode_meter, meter_pulses
+from drum_details import arrange_details
+from music_context import analyze_context
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RATE, HOP, WINDOW, FPS = 22050, 220, 2048, 50
@@ -95,6 +97,7 @@ def extract_drums(stem, mix):
                 tail = np.mean(high[min(len(high)-1,i+int(.12*RATE/HOP)):min(len(high),i+int(.35*RATE/HOP))])
                 prior = np.mean(high[max(0,i-int(.12*RATE/HOP)):max(1,i)])
                 event['sustain'] = float(tail / max(peak, 1e-6))
+                event['prominence'] = round(float(peak / max(np.percentile(high,90),1e-6)),4)
                 event['crash'] = bool(strength > .35 and peak > prior*1.35 and event['sustain'] > .16)
             events.append(event)
     events.sort(key=lambda e:e['time'])
@@ -295,7 +298,7 @@ def encode(values):
     return base64.b64encode(np.round(np.clip(values,0,1)*255).astype(np.uint8).tobytes()).decode('ascii')
 
 
-def bake_score(features,phrases,accents,events,beats,tempo,duration):
+def bake_score(features,phrases,accents,events,beats,tempo,duration,details=None):
     times=np.arange(int(np.ceil(duration*FPS))+1)/FPS;n=len(times)
     mix=normalize(np.interp(times,np.arange(len(features['mix_rms']))*HOP/RATE,features['mix_rms'])**.65)
     base=np.full(n,.30);period=np.full(n,28.);amplitude=np.full(n,10.);bias=np.zeros(n)
@@ -316,6 +319,17 @@ def bake_score(features,phrases,accents,events,beats,tempo,duration):
     bias=ndimage.gaussian_filter1d(bias,.8*FPS)
     separation=ndimage.gaussian_filter1d(separation,2.8*FPS)
     stereo=ndimage.gaussian_filter1d(stereo,1.2*FPS)
+    # Full-mix context is deliberately a slow, low-amplitude layer. It cannot
+    # schedule accents, change pulse envelopes or alter the sweep phase/speed.
+    context=features.get('context')
+    context_haze=np.zeros(n)
+    if context is not None:
+        energy=np.interp(times,np.arange(len(context['energy']))/FPS,context['energy'])
+        brightness=np.interp(times,np.arange(len(context['brightness']))/FPS,context['brightness'])
+        texture=np.interp(times,np.arange(len(context['texture']))/FPS,context['texture'])
+        base+=.035*(energy-.6)+.012*(texture-.25)
+        amplitude+=1.5*(energy-.6)+.8*(texture-.25)
+        context_haze=.025*(energy-.6)+.025*(texture-.25)+.02*(brightness-.6)
     phase=1+np.cumsum(speed)/FPS
     # The continuous bed follows broad musical dynamics; attack transients
     # still belong exclusively to the separated drum events below.
@@ -346,6 +360,25 @@ def bake_score(features,phrases,accents,events,beats,tempo,duration):
             intake=np.where((until>attack)&(until<.42),np.sin(np.pi*(until-attack)/(.42-attack))**2,0)
             left-=.045*intake;right-=.045*intake
             add_envelope(entry_wash,onset,.075,attack,.10,.55)
+    # Detail gestures have their own lower dynamic range. They answer the main
+    # cadence without moving, replacing or resetting any of its pulse times.
+    detail_l=np.zeros(n);detail_r=np.zeros(n);bloom=np.zeros(n);spread=np.zeros(n)
+    for detail in details or []:
+        kind=detail['type'];t=detail['time'];strength=detail['strength']
+        if kind=='cymbal':
+            nearest=min(accents,key=lambda a:abs(a['time']-t)) if accents else None
+            if nearest is not None and abs(nearest['time']-t)<=.08:
+                # Reinforce an existing main hit, never make a nearby second
+                # flash. Off-cadence crashes stay in haze and slow opening.
+                add_envelope(bloom,max(0,nearest['time']-.015),.09+.065*strength,.015,.045,.18)
+            add_envelope(spread,max(0,t-.12),1.,.12,.04,.32)
+        elif kind=='cymbal-texture':
+            add_envelope(bloom,max(0,t-.035),.02+.02*strength,.035,.01,.10)
+        else:
+            channel=detail_l if detail['side']==0 else detail_r
+            peak=(.14+.065*strength) if kind=='backbeat' else (.17+.065*strength)
+            add_envelope(channel,max(0,t-.01),peak,.01,.02,.065 if kind=='backbeat' else .055)
+    pulse_l=np.maximum(pulse_l,detail_l);pulse_r=np.maximum(pulse_r,detail_r)
     # Busy snare rolls belong to the diffuse room light. Adding independent
     # direct-beam flashes here made fast songs switch between the main cadence
     # and intervening backbeats, even when the main score was correctly locked.
@@ -362,15 +395,17 @@ def bake_score(features,phrases,accents,events,beats,tempo,duration):
         blend=np.clip((times-max(0,duration-4))/.8,0,1)
         blend=blend*blend*(3-2*blend)
         tail=1-.3*blend*(1-np.clip(smooth(mix,.25,FPS)/.35,0,1))
-    left=np.clip(left*tail+pulse_l,.25,.98);right=np.clip(right*tail+pulse_r,.25,.98)
+    left=np.clip(left*tail+pulse_l+bloom,.25,.98);right=np.clip(right*tail+pulse_r+bloom,.25,.98)
     wash=np.zeros(n)
     for event in events:
         if event['type']=='cymbal' and event.get('crash'):
             add_envelope(wash,event['time'],.07+.07*event['strength'],.08,.08,.45)
-    haze=np.clip(.36+.14*smooth(mix,.65,FPS)+wash+entry_wash+smooth(percussion_wash,.2,FPS)+.12*smooth(np.maximum(pulse_l,pulse_r),.16,FPS),.34,.86)
+    haze=np.clip(.36+.14*smooth(mix,.65,FPS)+context_haze+wash+entry_wash+smooth(percussion_wash,.2,FPS)+.12*smooth(np.maximum(pulse_l,pulse_r),.16,FPS),.34,.86)
     center=132.5
-    angle_l=center+amplitude*np.sin(phase)+bias*.3
-    angle_r=center+amplitude*np.sin(phase+separation)+bias*.3
+    # Strong sustained cymbals open the two beams gently; no fast head jumps.
+    opening=smooth(spread,.15,FPS)*1.6
+    angle_l=center+amplitude*np.sin(phase)+bias*.3-opening
+    angle_r=center+amplitude*np.sin(phase+separation)+bias*.3+opening
     # Bound head velocity across phrase transitions. Sampling remains seekable
     # because the slew is baked offline, never accumulated by the browser.
     for channel in [angle_l,angle_r]:
@@ -386,11 +421,14 @@ def analyze(stem,mix,duration=None,meter=None):
     # Separator output must share the decoded source's sample origin and length.
     stem=np.pad(stem,(0,max(0,len(mix)-len(stem))))[:len(mix)]
     features=extract_drums(stem,mix)
+    features['context']=analyze_context(mix,RATE,FPS)
     decoded=None;pulse_grid=None
     if meter is not None:
         if abs(meter['duration']-duration)>.06:raise ValueError('Meter duration does not match audio')
         beats=meter['beats']
         decoded=decode_meter(beats,meter['downbeatProbability'],meter['fps'])
+        # Preserve the approved v6 cadence; detail/context layers never feed
+        # back into meter selection or the matched main drum attacks.
         pulse_grid=meter_pulses(beats,decoded['phases'])
         intervals=np.diff(beats)
         tempo=60/float(np.median(intervals)) if len(intervals) else 120.
@@ -399,14 +437,20 @@ def analyze(stem,mix,duration=None,meter=None):
     else:beats,tempo_points,tempo=track_beats(features['onset'])
     phrases=make_phrases(features,beats,duration,tempo,decoded['barstarts'] if decoded else None)
     accents=arrange_accents(features['events'],phrases,beats,pulse_grid)
-    channels=bake_score(features,phrases,accents,features['events'],beats,tempo,duration)
+    details=arrange_details(features['events'],phrases,beats,decoded['phases'],pulse_grid,accents) if decoded else []
+    for phrase in phrases:
+        start=int(phrase['start']*FPS);end=max(start+1,int(phrase['end']*FPS))
+        phrase['context']={name:round(float(values[start:end].mean()),3)
+                           for name,values in features['context'].items()}
+    channels=bake_score(features,phrases,accents,features['events'],beats,tempo,duration,details)
     counts={kind:sum(e['type']==kind for e in features['events']) for kind in ['kick','snare','cymbal']}
     cues={'version':3,'duration':round(duration,4),'fps':FPS,'encoding':'u8-base64','channels':channels,
-          'beats':beats,'tempo':tempo_points,'phrases':phrases,'accents':accents,
+          'beats':beats,'tempo':tempo_points,'phrases':phrases,'accents':accents,'details':details,
           'analysis':{'separator':'htdemucs','method':'drum-stem/band-attacks/meter-cadence/phrase-score' if meter else 'drum-stem/band-attacks/dynamic-beat-tracking/phrase-score','phraseLabels':'estimated',
                       'instrumentLabels':'estimated','tempo':round(tempo,2),'events':counts,
+                      'musicContext':'full-mix/slow-energy-brightness-texture',
                       'crashes':sum(e.get('crash',False) for e in features['events']),
-                      'stemOffsetSamples':0,'stemSampleRate':RATE,'arrangement':6}}
+                      'stemOffsetSamples':0,'stemSampleRate':RATE,'arrangement':7}}
     if decoded is not None:
         cues['downbeats']=decoded['barstarts']
         cues['cadence']=pulse_grid

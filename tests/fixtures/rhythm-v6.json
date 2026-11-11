@@ -1,0 +1,292 @@
+{
+  "version": 6,
+  "sourceCommit": "dfb70b93c57d1bd007693231cce6bafe3e4f4288",
+  "description": "Approved rhythm sequences before adding musical detail and context layers. Arrays retain order; object keys are sorted before JSON serialization and SHA-256.",
+  "tracks": {
+    "walking-out-of-fog": {
+      "sourceSha256": "e12168d33056ae7b7ae18727c45ea23eac3718d26573d4754972752dba2034b2",
+      "beats": {
+        "count": 782,
+        "sha256": "cbcc964621a8f09a3cda6bb7e695c7f8e095aa58bee628051e210c25d20d50cb"
+      },
+      "downbeats": {
+        "count": 193,
+        "sha256": "25ca7ea9ece68868046c7c7e09295fcfb8e47527215107583e8d83b62b07bdb0"
+      },
+      "cadence": {
+        "count": 376,
+        "sha256": "1f8228519e9c16aa17326c0dac7ff22a32b4d9bb7c7f0e382d530e0472afa1d6"
+      },
+      "accents": {
+        "count": 271,
+        "sha256": "3defc64dcd27252c7c2d9bb471e4ad66c17215789a1123246bb0f2a3d8be79d6"
+      }
+    },
+    "barefaced-lies": {
+      "sourceSha256": "02fad428ee22160006948b9b116b5022fe054c66253f1a4c609a9f10402d3789",
+      "beats": {
+        "count": 760,
+        "sha256": "86d1c9aea9d925f4405fd2d35cf445a13334c61341bbd4a18c76a003bfa738b0"
+      },
+      "downbeats": {
+        "count": 189,
+        "sha256": "f192b63dc4c614329ea28a5292ec5f77beaae4db3c6d4e6132bc74ae15694813"
+      },
+      "cadence": {
+        "count": 388,
+        "sha256": "593c06f51090a717671568ed0d6bb0d95b5348c0ab854bf1744eaebf786bbc23"
+      },
+      "accents": {
+        "count": 311,
+        "sha256": "3dd3efd49b4ddf5f4aec65d1800ecb0d70a53f6bef2383bffde0e41cb01cf5c5"
+      }
+    },
+    "childhood-nightmare": {
+      "sourceSha256": "16fb0a49084af4380b68fb302bde1e68f729364fd778bf534b6df878dbfb1fda",
+      "beats": {
+        "count": 692,
+        "sha256": "20ec65aa7509f85e2748c60e4e86c9fff3b60c40fd0bada7b9ce9a6ff4b5e0a3"
+      },
+      "downbeats": {
+        "count": 171,
+        "sha256": "1d2215f23052cc45e2a6c4f312b38068325d93b8a32e0d161e4828f265bd953b"
+      },
+      "cadence": {
+        "count": 341,
+        "sha256": "8fab92cebdb79df89b65a15721d2e784c05c275a89f3c9754b064cedd4dc0a42"
+      },
+      "accents": {
+        "count": 238,
+        "sha256": "719211328578fd7f221766e4390bc9f11cdb1273d84f740358fcbaf3821b3bc2"
+      }
+    },
+    "bye-bye-my-country": {
+      "sourceSha256": "be612b01ac746503996f7dc5e1ce9047ce8867eaca953e9a8469b51e51d9ce20",
+      "beats": {
+        "count": 539,
+        "sha256": "f922163cad9c3b7aacc8c13ad397a48f05c76154b6d6753ff16a4a6d02a4e093"
+      },
+      "downbeats": {
+        "count": 133,
+        "sha256": "5c60cfd26a966210b045cb5e7b3563c34740e866766b180b44c9c87b98f6f446"
+      },
+      "cadence": {
+        "count": 293,
+        "sha256": "841b74ef029ad6d2e2d18c16c8a4f39559945547c9fac546d0ae73a2fb745d93"
+      },
+      "accents": {
+        "count": 219,
+        "sha256": "72e268b926c6c1e1ce452da4c31c6d5d92a83ca2dd1b9bf67f2c7a9886c0c43a"
+      }
+    },
+    "live-d22-intro": {
+      "sourceSha256": "daf1c977b7ad667c12b774942cb381bf634cf530e742ea1c9a6d030b83fdea40",
+      "beats": {
+        "count": 246,
+        "sha256": "98afd85e58d07852707231f2392e94cb604c63794752a86717f4b89ee08bdc97"
+      },
+      "downbeats": {
+        "count": 61,
+        "sha256": "140c7d9d04c8c203250e4711f64daa65a919261a29d4e6e1ed9e1a6ff5a9c671"
+      },
+      "cadence": {
+        "count": 121,
+        "sha256": "45aa95777bd47e0742d760fa670bb7ecf57ce40b85bb214dcc999d5849743049"
+      },
+      "accents": {
+        "count": 92,
+        "sha256": "c63b0c40d924afdcaa20757f4042a296ea600b2a2ff0fa03b9c346c377d51812"
+      }
+    },
+    "live-d22-fuck-the-schemers": {
+      "sourceSha256": "3722c2cdee05228062561a9a9f1bacc5ee2ee7c8384a40ee6fc39e89a27069cb",
+      "beats": {
+        "count": 630,
+        "sha256": "c3f7d3f15d5c753dda0246ca462f7cc5715ea59fea6db1181aff2ff2b69c2669"
+      },
+      "downbeats": {
+        "count": 158,
+        "sha256": "2a3852134fc0d0d5de05adf2197633eca50fb642e22225628109c998a5d6c3b8"
+      },
+      "cadence": {
+        "count": 308,
+        "sha256": "bec92d9625d4bb9c2dae95bf02e2fc46ad2ac4fb6b512fe9bc25490c96731488"
+      },
+      "accents": {
+        "count": 241,
+        "sha256": "9eb52e88655171bf6bc8a0910e5684cbf19c7d63100fa9236a7bb44252e9e478"
+      }
+    },
+    "live-d22-keep-yourself": {
+      "sourceSha256": "4ca17d14d30241dd679e2e2d522698588a514f86638bf04ba1876e77a83d5ccc",
+      "beats": {
+        "count": 193,
+        "sha256": "7aab9c0734c6924c8369e278656156fbbec8f477d9cc56719e9483bcda3091a3"
+      },
+      "downbeats": {
+        "count": 49,
+        "sha256": "9e43b0d4c1687f877067af581cc8ccbce2e6c02e8bd4757bfd21b038c63fb817"
+      },
+      "cadence": {
+        "count": 170,
+        "sha256": "63ed2a9cd88dbf5a78d941ac0036f2fb100b3519f3acbbe2d3f98017bebe33f3"
+      },
+      "accents": {
+        "count": 158,
+        "sha256": "52d46793493cbeab9383e7bd4f8e8d5f67353e2232824c7f4f71d58d0735e12d"
+      }
+    },
+    "live-d22-fight-your-apathy": {
+      "sourceSha256": "80f57db5510ef4f63559f8c58496cac6343c10a5b7b6e85ec949c616ce63bac3",
+      "beats": {
+        "count": 497,
+        "sha256": "68075ba2b33abef4b5328f842a296a0d8aa5e31faaad9062cb7510b50f1c583b"
+      },
+      "downbeats": {
+        "count": 123,
+        "sha256": "7308a1872076142a9699167324ac3531c33a1d7223615aeb3933fdeadd0cc413"
+      },
+      "cadence": {
+        "count": 248,
+        "sha256": "b1262335253f7740ad6361eb6d5d372941f7b9abc672aacdd68ad55675958a82"
+      },
+      "accents": {
+        "count": 138,
+        "sha256": "929775265d9dfc4697ddbdc0369c294137c7e05e788b251e2ea3117d45bd770a"
+      }
+    },
+    "live-d22-blitzkreig-bop": {
+      "sourceSha256": "90233b232295b4d200a17740b6d07020303cd90b9fa9e64512ca7221112d92d2",
+      "beats": {
+        "count": 641,
+        "sha256": "4563738b2b497c8998f450ce16a5a2d59f0454744c5131f8169aeaea0239117d"
+      },
+      "downbeats": {
+        "count": 162,
+        "sha256": "1b496b747d276ff20dc06cab1bf230bdb46d8b235c0616309da8bd49e4210ba1"
+      },
+      "cadence": {
+        "count": 339,
+        "sha256": "ca93e90b316dd93c84bea817a7b03d3842465e84603c3574df3bdff45a1a164c"
+      },
+      "accents": {
+        "count": 243,
+        "sha256": "29ac46380fa2cfe0495fb392b88289dd7818d098ef74ea29e0b381ecf5555f87"
+      }
+    },
+    "live-d22-voice-of-the-people": {
+      "sourceSha256": "ce9e36ee62326abe91bf1fc1b899b190001fce9f8f0ef6432c1fbbe31f06ca36",
+      "beats": {
+        "count": 776,
+        "sha256": "953919265e0c0d9a9a4346c8ef0d3a519668311d4afb5104d0ec7d55517a658a"
+      },
+      "downbeats": {
+        "count": 194,
+        "sha256": "717f12e01cdf1d68401899a82f4a622541024ad5d1360a52f6f1e512324d779d"
+      },
+      "cadence": {
+        "count": 363,
+        "sha256": "65840f4213170437838ed9c58d748cb1513093a8152aea2ec3f591f526611d4b"
+      },
+      "accents": {
+        "count": 199,
+        "sha256": "0bf2221355715b6af61bf55873bc5f530c143a0d82a9d3d4784d1ec1c7104a42"
+      }
+    },
+    "live-d22-never-gonna-change": {
+      "sourceSha256": "3db53ad561bd0bef0ab2b553d946ed32e81093a0f152e65498ca24ca8eafeebe",
+      "beats": {
+        "count": 549,
+        "sha256": "1dcbbc9c6779b5d8602e6ccb131e0e5728e2e2c6e454a07a34ff6f3c1c10ea40"
+      },
+      "downbeats": {
+        "count": 137,
+        "sha256": "1268ef3223d248f47145e690da226c15ebf0a0a47d6b237ec08c595d75bd0f5f"
+      },
+      "cadence": {
+        "count": 300,
+        "sha256": "c954b9f4d920b112e39f2cae780c55543c3ca4e25b5336754f026da91de38e96"
+      },
+      "accents": {
+        "count": 237,
+        "sha256": "d4ecbfc74e823fb3b4dfb54a4ab3672a806dc7e3a9fe3c815784ea4fbd231ebc"
+      }
+    },
+    "live-d22-bye-bye-my-country": {
+      "sourceSha256": "e863cc68873e688c9d6eea7b542e8db31b7fe3f874823c2bb7a25bbe33df2bf7",
+      "beats": {
+        "count": 475,
+        "sha256": "8815ae899b0be04e77452f6f120241dd0a95c68d778a404a8764ff5dd2596d74"
+      },
+      "downbeats": {
+        "count": 117,
+        "sha256": "d2ce557198cf4d0763cca2a4dd36df60000329dc8affcea340774a1f88b44d57"
+      },
+      "cadence": {
+        "count": 284,
+        "sha256": "7e8fb45f84807bf6cfba9ce8ace657ce22af7fe3c29c6195d8b7393304bca537"
+      },
+      "accents": {
+        "count": 208,
+        "sha256": "3fc784dc26257085d30f60fe396d79889a97033fa4d8363bcbce06407b361a7e"
+      }
+    },
+    "live-d22-unity-is-a-not-slogan": {
+      "sourceSha256": "8510c4a1dfe2405bd756f2c9d963a961d7da7209a466bcdee1369d21528f6c0f",
+      "beats": {
+        "count": 423,
+        "sha256": "7768f41cf144be2cd3b0b16eef5c5be8c08faa244859e5b1537a4034fa72db15"
+      },
+      "downbeats": {
+        "count": 107,
+        "sha256": "ba1405986b399668875b513c048a00a9f6747b2ff61047bd3ed253f960a48e0e"
+      },
+      "cadence": {
+        "count": 284,
+        "sha256": "c36277cbb935f828a54a84894d0e737ce4dd928762bc328dc7d6b6d3c2e6ab94"
+      },
+      "accents": {
+        "count": 248,
+        "sha256": "a2706a35075ea29ac2d830e33cea7b84677d0cecb4281865c4231b811bc1083c"
+      }
+    },
+    "live-d22-39005": {
+      "sourceSha256": "d8df6aac4cc8a0556c792067b52469fb4553112b5533feaf25e91d59fd752de1",
+      "beats": {
+        "count": 509,
+        "sha256": "3764db9bcca823c0f45ad404bccb0d91aea24916bb29520cd95a5a17364181a8"
+      },
+      "downbeats": {
+        "count": 126,
+        "sha256": "38c350108a546b8c7200c1e41b77234bfb6004f081172591f925c700030fb47d"
+      },
+      "cadence": {
+        "count": 303,
+        "sha256": "e6b8b6f6ee36783a8b69828a14654a9db57416f8e2350b0e86a22a84512eb0fe"
+      },
+      "accents": {
+        "count": 255,
+        "sha256": "c126141db2a266db9b666ef1d5463a3c84db67d6a6ca7e68883bbeaeee058acf"
+      }
+    },
+    "live-d22-the-world-has-become-a-battlefield": {
+      "sourceSha256": "f17f2f88e1fa95767692b16ad136dc21184a5d9bad00956287a1a44141b966fd",
+      "beats": {
+        "count": 430,
+        "sha256": "71cfe8b3e00f8f3dbbdb03c19c1e3054f4be26a5301ad7e92b8f4cde43f6b3e9"
+      },
+      "downbeats": {
+        "count": 106,
+        "sha256": "fbfde241f74c9bce4adf4252c462c614429aef6e577fcec34d6790d244978fcf"
+      },
+      "cadence": {
+        "count": 302,
+        "sha256": "38c0a4f609a13652de29e61a937b3d9611ebc8cf7646333a796a020589ac61a9"
+      },
+      "accents": {
+        "count": 234,
+        "sha256": "0926475a6b7a70e3f2fc182e74a871c35df6e589c86c5c0eec1ddf2454abfa57"
+      }
+    }
+  }
+}
